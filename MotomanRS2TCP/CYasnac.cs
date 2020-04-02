@@ -9,9 +9,6 @@ using System.Diagnostics;
 namespace MotomanRS2TCP
 {
 
-    /// <summary>
-    /// Wrapper for DX100 Yasnac robot controller
-    /// </summary>
     public class CYasnac
     {
         #region member variables
@@ -58,15 +55,6 @@ namespace MotomanRS2TCP
         public CYasnac(string path)
         {
             m_Path = path;
-        }
-
-        static CYasnac()
-        {
-            m_CommDir = Directory.GetCurrentDirectory();
-            if (m_CommDir.Substring(m_CommDir.Length - 1, 1) != "\\")
-            {
-                m_CommDir = m_CommDir + "\\";
-            }
         }
 
         #endregion
@@ -126,11 +114,6 @@ namespace MotomanRS2TCP
         }
 
 
-        /// <summary>
-        /// Reads status of the controller
-        /// </summary>
-        /// <param name="d1"></param>
-        /// <param name="d2"></param>
         private void UpdateStatus(ref short d1,ref short d2)
         {
             lock (m_YasnacAccessLock)
@@ -177,9 +160,6 @@ namespace MotomanRS2TCP
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public void RefreshStatus()
         {
             m_oldStatusD1 = -1;

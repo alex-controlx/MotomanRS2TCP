@@ -338,3 +338,10 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/MotomanRS2TCP/MotoLkr.dll
+/MotomanRS2TCP/MotoLke.dll
+/MotomanRS2TCP/MotoLk.dll
+/MotomanRS2TCP/MotoLdk1.dll
+/MotomanRS2TCP/MotoLdk.dll
+/MotomanRS2TCP/MotoCom32.dll
+/MotomanRS2TCP/vrp32.dll
