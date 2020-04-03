@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using Newtonsoft.Json;
+using System;
 using System.Windows.Forms;
 
 namespace MotomanRS2TCP
@@ -14,13 +7,31 @@ namespace MotomanRS2TCP
     public partial class Form1 : Form
     {
         private delegate void SafeCallDelegate(string text);
+        private delegate void Label9Delegate(object sender, EventArgs e);
         private NodeTcpListener server;
-        private CYasnac xrc;
+        private MotomanConnection xrc;
+        private int uiUpdateCounter = 0;
+        private readonly CRobPosVar posSP = new CRobPosVar();
+        private readonly CRobPosVar homePos = new CRobPosVar();
+        private readonly short varIndex = 0;
 
         public Form1()
         {
             InitializeComponent();
             this.FormClosing += Form1_FormClosing;
+            label7.Text = uiUpdateCounter.ToString();
+
+            homePos.X = 1135;
+            homePos.Y = -145;
+            homePos.Z = 1060;
+            homePos.Rx = 90;
+            homePos.Ry = 4;
+            homePos.Rz = 82;
+            homePos.Formcode = 0;
+            homePos.ToolNo = 0;
+
+            UpdateUiCurrentPosition();
+            UpdateUiSetpointPosition();
             StartApp();
         }
 
@@ -29,7 +40,6 @@ namespace MotomanRS2TCP
         {
             if (xrc != null)
             {
-                xrc.AutoStatusUpdate = false;
                 xrc.Disconnect();
                 xrc = null;
                 Console.WriteLine("Stopping XRC connection");
@@ -43,14 +53,18 @@ namespace MotomanRS2TCP
         {
             try
             {
-                xrc = new CYasnac("");
-                xrc.StatusChanged += new EventHandler(rc1_StatusChanged); // Register Eventhandler for status change
+                xrc = new MotomanConnection();
+                xrc.StatusChanged += new EventHandler(StatusChanged); // Register Eventhandler for status change
                 xrc.ConnectionStatus += new EventHandler(rc1_connectionStatus); // Register Eventhandler for status change
                 xrc.EventStatus += new EventHandler(rc1_eventStatus); // Register Eventhandler for status change
                 xrc.ConnectionError += new EventHandler(rc1_errorStatus); // Register Eventhandler for status change
+                xrc.DispatchCurrentPosition += new EventHandler(
+                    (object sender, EventArgs e) => { UpdateUiCurrentPosition(); }
+                );
+
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
-                //rc1.AutoStatusUpdate = true;
+                //xrc.AutoStatusUpdate = true;
 
                 WriteLine("TCP Starting server");
                 server = new NodeTcpListener(this, xrc, 4305);
@@ -68,7 +82,18 @@ namespace MotomanRS2TCP
 
         private void rc1_eventStatus(object sender, EventArgs e)
         {
-            WriteLine("    XRC Event: " + xrc.CurrentEvent);
+            //WriteLine("    XRC Event: " + xrc.CurrentEvent);
+            // label9.Text = xrc.CurrentEvent;
+
+            if (label9.InvokeRequired)
+            {
+                label9.Invoke(new Label9Delegate(rc1_eventStatus), new object[] { sender, e });
+            }
+            else
+            {
+                label9.Text = xrc.CurrentEvent;
+
+            }
         }
 
         private void rc1_errorStatus(object sender, EventArgs e)
@@ -76,26 +101,9 @@ namespace MotomanRS2TCP
             WriteLine("    XRC Error: " + xrc.CurrentError);
         }
 
-        private void rc1_StatusChanged(object sender, EventArgs e)
+        private void StatusChanged(object sender, EventArgs e)
         {
-            string message = "IsStep " + xrc.IsStep.ToString() + ", " +
-                "1Cycle " + xrc.Is1Cycle.ToString() + ", " +
-                "Auto " + xrc.IsAuto.ToString() + ", " +
-                "Operating " + xrc.IsOperating.ToString() + ", " +
-                "SafeSpeed " + xrc.IsSafeSpeed.ToString() + ", " +
-                "Teach " + xrc.IsTeach.ToString() + ", " +
-                "Play " + xrc.IsPlay.ToString() + ", " +
-                "Teach " + xrc.IsTeach.ToString() + ", " +
-                "CommandRemote " + xrc.IsCommandRemote.ToString() + ", " +
-
-                "PlaybackBoxHold " + xrc.IsPlaybackBoxHold.ToString() + ", " +
-                "PPHold " + xrc.IsPPHold.ToString() + ", " +
-                "ExternalHold " + xrc.IsExternalHold.ToString() + ", " +
-                "CommandHold " + xrc.IsCommandHold.ToString() + ", " +
-                "Alarm " + xrc.IsAlarm.ToString() + ", " +
-                "Error " + xrc.IsError.ToString() + ", " +
-                "ServoOn " + xrc.IsServoOn.ToString();
-            WriteLine("    XRC Ststus: " + message);
+            WriteLine("    XRC Status: " + xrc.RobotStatusJson);
         }
 
         public void WriteLine(string message)
@@ -118,39 +126,145 @@ namespace MotomanRS2TCP
             }
         }
 
-        private void btnDown_Click(object sender, EventArgs e)
-        {
-            WriteLine("Down clicked");
 
+        private void btnUp_Click(object sender, EventArgs e)
+        {
+            posSP.X = posSP.X + 10;
+            UpdateUiSetpointPosition();
         }
 
-        private void btnGetStatus_Click(object sender, EventArgs e)
+        private void btnDown_Click(object sender, EventArgs e)
         {
-            xrc.RefreshStatus();
+            posSP.X = posSP.X - 10;
+            UpdateUiSetpointPosition();
+        }
+
+        private void btnHomePos_Click(object sender, EventArgs e)
+        {
+            Array.Copy(homePos.HostGetVarDataArray, posSP.HostGetVarDataArray, homePos.HostGetVarDataArray.Length);
+            UpdateUiSetpointPosition();
         }
 
         private void btnGetPos_Click(object sender, EventArgs e)
         {
+            //getGeneralStatus();
+            //AutomaticStatusRead();
+        }
+
+        private void GetPositionVariable()
+        {
+            //if (xrc.CurrentEvent != EnumEvent.Idle) return;
+            CRobPosVar posVar = new CRobPosVar();
+            xrc.ReadPositionVariable(varIndex, posVar);
+            UpdateUiPositionVariable(posVar);
+        }
+
+        private Timer statusReadTimeout = new Timer();
+        //private void AutomaticStatusRead()
+        //{
+            
+        //    getGeneralStatus();
+            
+        //}
+
+        private void getGeneralStatus()
+        {
+            if (xrc.CurrentEvent != EnumEvent.Idle) return;
+            
+            UpdateUiCurrentPosition();
+        }
+        
+
+
+        private void UpdateUiPositionVariable(CRobPosVar posVar)
+        {
+            uiUpdateCounter++;
+            label7.Text = uiUpdateCounter.ToString();
+            if (posVar != null)
+            {
+                if (posVar.DataType == PosVarType.XYZ)
+                {
+                    label5.Text = "X:" + posVar.X.ToString() + " " +
+                        "Y:" + posVar.Y.ToString() + " " +
+                        "Z:" + posVar.Z.ToString() + " " +
+                        "Rx:" + posVar.Rx.ToString() + " " +
+                        "Ry:" + posVar.Ry.ToString() + " " +
+                        "Rz:" + posVar.Rz.ToString() + " " +
+                        "F:" + posVar.Formcode.ToString() + " " +
+                        "Tool:" + posVar.ToolNo.ToString();
+                }
+                else label5.Text = "Not XYZ coordinates";
+            }
+        }
+
+
+        private void UpdateUiCurrentPosition()
+        {
+            if (xrc == null) return;
+
+            var currentPosition = xrc.GetCurrentPosition();
+            label6.Text = "X:" + currentPosition[0].ToString() + " " +
+                "Y:" + currentPosition[1].ToString() + " " +
+                "Z:" + currentPosition[2].ToString() + " " +
+                "Rx:" + currentPosition[3].ToString() + " " +
+                "Ry:" + currentPosition[4].ToString() + " " +
+                "Rz:" + currentPosition[5].ToString() + " " +
+                "F:" + currentPosition[13].ToString() + " " +
+                "Tool:" + currentPosition[14].ToString();
+        }
+
+        private void UpdateUiSetpointPosition()
+        {
+            label4.Text = "X:" + posSP.X.ToString() + " " +
+                "Y:" + posSP.Y.ToString() + " " +
+                "Z:" + posSP.Z.ToString() + " " +
+                "Rx:" + posSP.Rx.ToString() + " " +
+                "Ry:" + posSP.Ry.ToString() + " " +
+                "Rz:" + posSP.Rz.ToString() + " " +
+                "F:" + posSP.Formcode.ToString() + " " +
+                "Tool:" + posSP.ToolNo.ToString();
+        }
+
+
+        private void readByteVariableExample()
+        {
             try
             {
-                //CRobPosVar posVar = new CRobPosVar();
-                double[] p = new double[12];
-                xrc.ReadPosition(0, p);  // 27 is Master tool coordinate for XRC and MRC
-                //if (posVar.DataType == PosVarType.XYZ)
-                //    WriteLine("    X-Value: " + posVar.X.ToString() + "\t Y-Value: " + posVar.Y.ToString() + "\t Z-Value: " + posVar.Z.ToString());
-                //else
-                //    WriteLine("    S-Value:\t" + posVar.SAxis.ToString());
-                WriteLine("    X-Value: " + p[0].ToString() + "\t Y-Value: " + p[1].ToString() + "\t Z-Value: " + p[2].ToString());
-                
                 double[] doubles = new double[10];
                 xrc.ReadByteVariable(0, doubles);
                 WriteLine("    Byte var: " + doubles[0].ToString());
-            } 
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
             }
-            
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message);
+            }
+        }
+
+        private void btnCurrentPos2SP_Click(object sender, EventArgs e)
+        {
+            if (xrc == null) return;
+
+            var currentPosition = xrc.GetCurrentPosition();
+            posSP.X = currentPosition[0];
+            posSP.Y = currentPosition[1];
+            posSP.Z = currentPosition[2];
+            posSP.Rx = currentPosition[3];
+            posSP.Ry = currentPosition[4];
+            posSP.Rz = currentPosition[5];
+            posSP.Formcode = Convert.ToInt16(currentPosition[13]);
+            posSP.ToolNo = Convert.ToInt16(currentPosition[14]);
+            UpdateUiSetpointPosition();
+        }
+
+        private void btnSetPosVar_Click(object sender, EventArgs e)
+        {
+            xrc.WritePositionVariable(varIndex, posSP);
+            GetPositionVariable();
+        }
+
+        private void btnGetPosVar_Click(object sender, EventArgs e)
+        {
+            GetPositionVariable();
         }
     }
 }

@@ -14,29 +14,32 @@ namespace MotomanRS2TCP
         private TcpListener server = null;
         private readonly List<TcpClient> clients = new List<TcpClient>();
         private Form1 form;
-        private CYasnac xrc;
+        private MotomanConnection xrc;
+        private Boolean isListening = false;
 
         //public NodeTcpListener(string ip, int port)
-        public NodeTcpListener(Form1 _form, CYasnac _xrc, int port)
+        public NodeTcpListener(Form1 form, MotomanConnection xrc, int port)
         {
-            form = _form;
-            xrc = _xrc;
+            this.form = form;
+            this.xrc = xrc;
 
             mainTread = new Thread(delegate ()
             {
                 //IPAddress localAddr = IPAddress.Parse(ip);
                 server = new TcpListener(IPAddress.Any, port);
+                isListening = true;
                 server.Start();
                 StartListener();
             });
             mainTread.Start();
-            form.WriteLine("    TCP is listening");
+            if (form != null) form.WriteLine("    TCP is listening");
         }
 
         public void StopServer()
         {
             try
             {
+                isListening = false;
                 foreach (TcpClient client in clients) client.Close();
                 server.Stop();
                 mainTread.Join();
@@ -51,9 +54,8 @@ namespace MotomanRS2TCP
         {
             try
             {
-                while (true)
+                while (isListening)
                 {
-                    //Console.WriteLine("Waiting for a connection...");
                     TcpClient client = server.AcceptTcpClient();
                     clients.Add(client);
                     form.WriteLine("    TCP client " + ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString());
@@ -61,9 +63,9 @@ namespace MotomanRS2TCP
                     t.Start(client);
                 }
             }
-            catch (SocketException e)
+            catch (Exception e)
             {
-                Console.WriteLine("SocketException: {0}", e);
+                Console.WriteLine("StartListener: {0}", e);
                 server.Stop();
             }
         }
@@ -92,7 +94,7 @@ namespace MotomanRS2TCP
             }
             catch (Exception e)
             {
-                Console.WriteLine("Exception: {0}", e.ToString());
+                Console.WriteLine("HandleDeivce: {0}", e.ToString());
                 client.Close();
             }
         }

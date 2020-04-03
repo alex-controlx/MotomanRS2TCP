@@ -4,6 +4,17 @@ using System.Text;
 
 namespace MotomanRS2TCP
 {
+    internal class Timeout : System.Timers.Timer
+    {
+        public Timeout(Action action, double delay)
+        {
+            this.AutoReset = false;
+            this.Interval = delay;
+            this.Elapsed += (sender, args) => action();
+            this.Start();
+        }
+    }
+
     public enum FrameType : byte
     {
         Base = 0,
