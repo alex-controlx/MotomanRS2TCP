@@ -1,10 +1,10 @@
 using System;
-using System.Collections;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using Newtonsoft.Json;
-using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MotomanRS2TCP
 {
@@ -14,9 +14,9 @@ namespace MotomanRS2TCP
         #region member variables
 
         private short m_Handle = -1;
-        Timer StatusTimer = new Timer();
-        private static Object m_FileAccessDirLock = new Object();
-        private Object m_YasnacAccessLock = new Object();
+        System.Windows.Forms.Timer StatusTimer = new System.Windows.Forms.Timer();
+        //private static Object m_FileAccessDirLock = new Object();
+        //private Object m_YasnacAccessLock = new Object();
         private static string m_CommDir;
         private string m_CurrentConnection = EnumComms.Disconnected;
         private string m_Error = "";
@@ -24,6 +24,7 @@ namespace MotomanRS2TCP
         private readonly CRobotStatus robotStatus = new CRobotStatus();
         private double[] currentPosition = new double[15];
         private bool m_AutoStatusUpdate = false;
+        private bool m_commsError = true;
 
         #endregion
 
@@ -94,11 +95,12 @@ namespace MotomanRS2TCP
             //throw new Exception("Could not get a handle. Check Hardware key !");
         }
 
-        public void Disconnect()
+        public async void Disconnect()
         {
             if (m_Handle >= 0)
             {
                 SetConnection(EnumComms.Disconnecting);
+                await TaskEx.WaitUntil(isIdle);
                 CMotocom.BscDisConnect(m_Handle);
                 CMotocom.BscClose(m_Handle);
                 SetConnection(EnumComms.Disconnected);
@@ -106,122 +108,101 @@ namespace MotomanRS2TCP
         }
 
 
-        private void ReadGeneralStatus()
+        private async void ReadGeneralStatus()
         {
-            lock (m_YasnacAccessLock)
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("ReadGeneralStatus");
+
+            short sw1 = -1, sw2 = -1;
+            short ret = CMotocom.BscGetStatus(m_Handle, ref sw1, ref sw2);
+            if (ret != 0) {
+                Console.WriteLine("Error calling BscGetStatus in getGeneralStatus: " + ret.ToString());
+                SetError("Error calling BscGetStatus in getGeneralStatus");
+                m_commsError = true;
+
+            } else
             {
-                SetEvent("getGeneralStatus");
-
-                short sw1 = -1, sw2 = -1;
-                Console.WriteLine("Reading BscGetStatus 1");
-                short ret = CMotocom.BscGetStatus(m_Handle, ref sw1, ref sw2);
-                if (ret != 0) {
-                    Console.WriteLine("Error calling BscGetStatus in getGeneralStatus: " + ret.ToString());
-                    SetError("Error calling BscGetStatus in getGeneralStatus");
-                    return;
-                }
                 if (robotStatus.SetAndCheckSWs(sw1, sw2)) StatusChanged(this, null);
-
-                Console.WriteLine("Reading BscGetStatus 2");
 
                 StringBuilder framename = new StringBuilder("ROBOT");
                 int formCode = 0;
                 short isExternal = 0;
                 short toolNo = 0;
                 short ret1 = CMotocom.BscGetCartPos(
-                    m_Handle, framename, isExternal, ref formCode, ref toolNo, ref currentPosition[0]
-                    );
-                if (ret1 == -1) SetError("Error executing BscDCIGetPos");
-                currentPosition[13] = formCode;
-                currentPosition[14] = toolNo;
-                Console.WriteLine("Reading BscGetCartPos: " + ret1.ToString());
+                    m_Handle, framename, isExternal, ref formCode, ref toolNo, ref currentPosition[0]);
 
-                DispatchCurrentPosition(this, null);
+                if (ret1 == -1)
+                {
+                    SetError("Error executing BscDCIGetPos");
+                    m_commsError = true;
+                } else
+                {
+                    currentPosition[13] = formCode;
+                    currentPosition[14] = toolNo;
+                    m_commsError = false;
 
-                StatusTimer.Start();
-                SetEvent(EnumEvent.Idle);
+                    DispatchCurrentPosition(this, null);
+                }
             }
+            SetEvent(EnumEvent.Idle);
         }
 
-        public void ReadByteVariable(short index, double[] posVarArray)
+        public async void ReadByteVariable(short index, double[] posVarArray)
         {
-            lock (m_YasnacAccessLock)
-            {
-                SetEvent("ReadByteVariable");
+            if (m_commsError) return;
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("ReadByteVariable");
 
-                short ret = CMotocom.BscGetVarData(m_Handle, 0, index, ref posVarArray[0]);
-                if (ret != 0) SetError("Error executing ReadByteVariable");
+            short ret = CMotocom.BscGetVarData(m_Handle, 0, index, ref posVarArray[0]);
+            if (ret != 0) SetError("Error executing ReadByteVariable");
                 
-                SetEvent(EnumEvent.Idle);
-            }
-            
+            SetEvent(EnumEvent.Idle);
         }
 
 
 
-        public void ReadPositionVariable(short Index, CRobPosVar PosVar)
+        public async Task ReadPositionVariable(short Index, CRobPosVar PosVar)
         {
-            lock (m_YasnacAccessLock)
-            {
-                SetEvent("ReadPositionVariable");
+            if (m_commsError) return;
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("ReadPositionVariable");
 
-                StringBuilder StringVal = new StringBuilder(256);
-                double[] PosVarArray = new double[12];
-                short ret = CMotocom.BscHostGetVarData(m_Handle, 4, Index, ref PosVarArray[0], StringVal);
-                if (ret != 0) SetError("Error executing ReadPositionVariable: " + ret.ToString());
-                //throw new Exception("Error executing BscHostGetVarData");
-                if (PosVar != null) PosVar.HostGetVarDataArray = PosVarArray;
 
-                SetEvent(EnumEvent.Idle);
-            }
+            StringBuilder StringVal = new StringBuilder(256);
+            double[] PosVarArray = new double[12];
+            short ret = CMotocom.BscHostGetVarData(m_Handle, 4, Index, ref PosVarArray[0], StringVal);
+            if (ret != 0) SetError("Error executing ReadPositionVariable: " + ret.ToString());
+            //throw new Exception("Error executing BscHostGetVarData");
+            if (PosVar != null) PosVar.HostGetVarDataArray = PosVarArray;
+
+            SetEvent(EnumEvent.Idle);
         }
 
-        public void WritePositionVariable(short Index, CRobPosVar PosVar)
+        public async Task WritePositionVariable(short Index, CRobPosVar PosVar)
         {
-            lock (m_YasnacAccessLock)
-            {
-                SetEvent("WritePositionVariable");
+            if (m_commsError) return;
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("WritePositionVariable");
 
-                StringBuilder StringVal = new StringBuilder(256);
-                double[] PosVarArray = PosVar.HostGetVarDataArray;
-                short ret = CMotocom.BscHostPutVarData(m_Handle, 4, Index, ref PosVarArray[0], StringVal);
-                if (ret != 0) SetError("Error executing WritePositionVariable");
+            Console.WriteLine("X is " + PosVar.X.ToString());
 
-                SetEvent(EnumEvent.Idle);
-            }
+            StringBuilder StringVal = new StringBuilder(256);
+            double[] PosVarArray = PosVar.HostGetVarDataArray;
+            short ret = CMotocom.BscHostPutVarData(m_Handle, 4, Index, ref PosVarArray[0], StringVal);
+            if (ret != 0) SetError("Error executing WritePositionVariable");
+
+            SetEvent(EnumEvent.Idle);
         }
 
-        private void TestFunc()
-        {
-            Console.WriteLine("TestFunc called");
-        }
-
-        List<Action> m_functions = new List<Action>();
-        Action m_function;
-        public void WritePositionVariable2(short Index, CRobPosVar PosVar)
-        {
-            if (!m_functions.Contains(TestFunc)) m_functions.Add(TestFunc);
-        }
-
-
-
-
-
-
-        public double[] GetCurrentPosition()
-        {
-            return (double[])currentPosition.Clone();
-        }
 
 
         void StatusTimer_Tick(object sender, EventArgs e)
         {
-
-            Console.WriteLine("     >>>>>>>>>     StatusTimer_Tick 1");
             if (m_CurrentConnection != EnumComms.Connected || m_CurrentEvent != EnumEvent.Idle) return;
-            Console.WriteLine("     >>>>>>>>>     StatusTimer_Tick 2");
+            // the timer below behaves as a timeout
             StatusTimer.Stop();
-            ReadGeneralStatus();            
+            ReadGeneralStatus();
+            StatusTimer.Start();
         }
 
         public bool AutoStatusUpdate
@@ -238,6 +219,7 @@ namespace MotomanRS2TCP
                     StatusTimer.Interval = 2000;
                     StatusTimer.Tick += new EventHandler(StatusTimer_Tick);
                     StatusTimer.Start();
+
                 }
                 else StatusTimer.Stop();
             }
@@ -246,26 +228,34 @@ namespace MotomanRS2TCP
         private void SetError(string message)
         {
             m_Error = message;
-            if (ConnectionError != null) ConnectionError(this, null);
+            ConnectionError?.Invoke(this, null);
         }
 
         private void SetConnection(string status)
         {
             Console.WriteLine("Connection Status is " + status);
             m_CurrentConnection = status;
-            if (ConnectionStatus != null) ConnectionStatus(this, null);
+            ConnectionStatus?.Invoke(this, null);
         }
 
         private void SetEvent(string eventStr)
         {
             m_CurrentEvent = eventStr;
-            if (EventStatus != null) EventStatus(this, null);
+            EventStatus?.Invoke(this, null);
+        }
+
+        private bool isIdle()
+        {
+            return m_CurrentEvent == EnumEvent.Idle;
         }
 
         #endregion
 
 
-
+        public double[] GetCurrentPosition()
+        {
+            return (double[])currentPosition.Clone();
+        }
 
 
 
@@ -310,6 +300,8 @@ namespace MotomanRS2TCP
         {
             get { return JsonConvert.SerializeObject(robotStatus);  }
         }
+
+        public bool CommsError { get => m_commsError; }
 
         #endregion
     }

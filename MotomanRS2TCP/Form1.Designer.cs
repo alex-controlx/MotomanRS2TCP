@@ -31,7 +31,6 @@
             this.listBox1 = new System.Windows.Forms.ListBox();
             this.btnUp = new System.Windows.Forms.Button();
             this.btnDown = new System.Windows.Forms.Button();
-            this.btnReadStatus = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -59,7 +58,7 @@
             // 
             // btnUp
             // 
-            this.btnUp.Location = new System.Drawing.Point(35, 54);
+            this.btnUp.Location = new System.Drawing.Point(15, 15);
             this.btnUp.Name = "btnUp";
             this.btnUp.Size = new System.Drawing.Size(75, 23);
             this.btnUp.TabIndex = 2;
@@ -69,23 +68,13 @@
             // 
             // btnDown
             // 
-            this.btnDown.Location = new System.Drawing.Point(35, 83);
+            this.btnDown.Location = new System.Drawing.Point(15, 44);
             this.btnDown.Name = "btnDown";
             this.btnDown.Size = new System.Drawing.Size(75, 23);
             this.btnDown.TabIndex = 3;
             this.btnDown.Text = "Down";
             this.btnDown.UseVisualStyleBackColor = true;
             this.btnDown.Click += new System.EventHandler(this.btnDown_Click);
-            // 
-            // btnReadStatus
-            // 
-            this.btnReadStatus.Location = new System.Drawing.Point(12, 12);
-            this.btnReadStatus.Name = "btnReadStatus";
-            this.btnReadStatus.Size = new System.Drawing.Size(98, 23);
-            this.btnReadStatus.TabIndex = 6;
-            this.btnReadStatus.Text = "Read Status";
-            this.btnReadStatus.UseVisualStyleBackColor = true;
-            this.btnReadStatus.Click += new System.EventHandler(this.btnGetPos_Click);
             // 
             // label1
             // 
@@ -144,7 +133,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(125, 15);
+            this.label7.Location = new System.Drawing.Point(124, 15);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(46, 17);
             this.label7.TabIndex = 13;
@@ -180,7 +169,7 @@
             // 
             // btnHomePos
             // 
-            this.btnHomePos.Location = new System.Drawing.Point(35, 112);
+            this.btnHomePos.Location = new System.Drawing.Point(15, 73);
             this.btnHomePos.Name = "btnHomePos";
             this.btnHomePos.Size = new System.Drawing.Size(75, 23);
             this.btnHomePos.TabIndex = 17;
@@ -226,7 +215,6 @@
             this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.btnReadStatus);
             this.Controls.Add(this.btnDown);
             this.Controls.Add(this.btnUp);
             this.Controls.Add(this.listBox1);
@@ -241,7 +229,6 @@
         private System.Windows.Forms.ListBox listBox1;
         private System.Windows.Forms.Button btnUp;
         private System.Windows.Forms.Button btnDown;
-        private System.Windows.Forms.Button btnReadStatus;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;

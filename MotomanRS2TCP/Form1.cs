@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace MotomanRS2TCP
@@ -8,6 +9,8 @@ namespace MotomanRS2TCP
     {
         private delegate void SafeCallDelegate(string text);
         private delegate void Label9Delegate(object sender, EventArgs e);
+        private delegate void Label5Delegate(CRobPosVar posVar);
+        private delegate void Label6Delegate();
         private NodeTcpListener server;
         private MotomanConnection xrc;
         private int uiUpdateCounter = 0;
@@ -64,7 +67,7 @@ namespace MotomanRS2TCP
 
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
-                //xrc.AutoStatusUpdate = true;
+                xrc.AutoStatusUpdate = true;
 
                 WriteLine("TCP Starting server");
                 server = new NodeTcpListener(this, xrc, 4305);
@@ -77,14 +80,13 @@ namespace MotomanRS2TCP
 
         private void rc1_connectionStatus(object sender, EventArgs e)
         {
+            if (xrc == null) return;
             WriteLine("    XRC Connection: " + xrc.CurrentConnection);
         }
 
         private void rc1_eventStatus(object sender, EventArgs e)
         {
-            //WriteLine("    XRC Event: " + xrc.CurrentEvent);
-            // label9.Text = xrc.CurrentEvent;
-
+            if (xrc == null) return;
             if (label9.InvokeRequired)
             {
                 label9.Invoke(new Label9Delegate(rc1_eventStatus), new object[] { sender, e });
@@ -98,11 +100,13 @@ namespace MotomanRS2TCP
 
         private void rc1_errorStatus(object sender, EventArgs e)
         {
+            if (xrc == null) return;
             WriteLine("    XRC Error: " + xrc.CurrentError);
         }
 
         private void StatusChanged(object sender, EventArgs e)
         {
+            if (xrc == null) return;
             WriteLine("    XRC Status: " + xrc.RobotStatusJson);
         }
 
@@ -141,59 +145,61 @@ namespace MotomanRS2TCP
 
         private void btnHomePos_Click(object sender, EventArgs e)
         {
+            // copy Home Position to Setpoint array
             Array.Copy(homePos.HostGetVarDataArray, posSP.HostGetVarDataArray, homePos.HostGetVarDataArray.Length);
             UpdateUiSetpointPosition();
         }
 
-        private void btnGetPos_Click(object sender, EventArgs e)
-        {
-            //getGeneralStatus();
-            //AutomaticStatusRead();
-        }
 
         private void GetPositionVariable()
         {
-            //if (xrc.CurrentEvent != EnumEvent.Idle) return;
-            CRobPosVar posVar = new CRobPosVar();
-            xrc.ReadPositionVariable(varIndex, posVar);
-            UpdateUiPositionVariable(posVar);
-        }
+            if (xrc == null) return;
 
-        private Timer statusReadTimeout = new Timer();
-        //private void AutomaticStatusRead()
-        //{
-            
-        //    getGeneralStatus();
-            
-        //}
+            // starting new thread to tests multithread action
+            new Thread(new ThreadStart( async () =>
+            {
+                CRobPosVar posVar = new CRobPosVar();
+                await xrc.ReadPositionVariable(varIndex, posVar);
 
-        private void getGeneralStatus()
-        {
-            if (xrc.CurrentEvent != EnumEvent.Idle) return;
-            
-            UpdateUiCurrentPosition();
+                Console.WriteLine("X:" + posVar.X.ToString() + " " +
+                            "Y:" + posVar.Y.ToString() + " " +
+                            "Z:" + posVar.Z.ToString() + " " +
+                            "Rx:" + posVar.Rx.ToString() + " " +
+                            "Ry:" + posVar.Ry.ToString() + " " +
+                            "Rz:" + posVar.Rz.ToString() + " " +
+                            "F:" + posVar.Formcode.ToString() + " " +
+                            "Tool:" + posVar.ToolNo.ToString());
+
+                UpdateUiPositionVariable(posVar);
+            })).Start();   
         }
-        
 
 
         private void UpdateUiPositionVariable(CRobPosVar posVar)
         {
             uiUpdateCounter++;
-            label7.Text = uiUpdateCounter.ToString();
-            if (posVar != null)
+            if (label5.InvokeRequired)
             {
-                if (posVar.DataType == PosVarType.XYZ)
+                label5.Invoke(new Label5Delegate(UpdateUiPositionVariable), new object[] { posVar });
+            }
+            else
+            {
+                label7.Text = uiUpdateCounter.ToString();
+                if (posVar != null)
                 {
-                    label5.Text = "X:" + posVar.X.ToString() + " " +
-                        "Y:" + posVar.Y.ToString() + " " +
-                        "Z:" + posVar.Z.ToString() + " " +
-                        "Rx:" + posVar.Rx.ToString() + " " +
-                        "Ry:" + posVar.Ry.ToString() + " " +
-                        "Rz:" + posVar.Rz.ToString() + " " +
-                        "F:" + posVar.Formcode.ToString() + " " +
-                        "Tool:" + posVar.ToolNo.ToString();
+                    if (posVar.DataType == PosVarType.XYZ)
+                    {
+                        label5.Text = "X:" + posVar.X.ToString() + " " +
+                            "Y:" + posVar.Y.ToString() + " " +
+                            "Z:" + posVar.Z.ToString() + " " +
+                            "Rx:" + posVar.Rx.ToString() + " " +
+                            "Ry:" + posVar.Ry.ToString() + " " +
+                            "Rz:" + posVar.Rz.ToString() + " " +
+                            "F:" + posVar.Formcode.ToString() + " " +
+                            "Tool:" + posVar.ToolNo.ToString();
+                    }
+                    else label5.Text = "Not XYZ coordinates";
                 }
-                else label5.Text = "Not XYZ coordinates";
             }
         }
 
@@ -203,14 +209,21 @@ namespace MotomanRS2TCP
             if (xrc == null) return;
 
             var currentPosition = xrc.GetCurrentPosition();
-            label6.Text = "X:" + currentPosition[0].ToString() + " " +
-                "Y:" + currentPosition[1].ToString() + " " +
-                "Z:" + currentPosition[2].ToString() + " " +
-                "Rx:" + currentPosition[3].ToString() + " " +
-                "Ry:" + currentPosition[4].ToString() + " " +
-                "Rz:" + currentPosition[5].ToString() + " " +
-                "F:" + currentPosition[13].ToString() + " " +
-                "Tool:" + currentPosition[14].ToString();
+            if (label6.InvokeRequired)
+            {
+                label6.Invoke(new Label6Delegate(UpdateUiCurrentPosition));
+            }
+            else
+            {
+                label6.Text = "X:" + currentPosition[0].ToString() + " " +
+                    "Y:" + currentPosition[1].ToString() + " " +
+                    "Z:" + currentPosition[2].ToString() + " " +
+                    "Rx:" + currentPosition[3].ToString() + " " +
+                    "Ry:" + currentPosition[4].ToString() + " " +
+                    "Rz:" + currentPosition[5].ToString() + " " +
+                    "F:" + currentPosition[13].ToString() + " " +
+                    "Tool:" + currentPosition[14].ToString();
+            }
         }
 
         private void UpdateUiSetpointPosition()
@@ -225,20 +238,6 @@ namespace MotomanRS2TCP
                 "Tool:" + posSP.ToolNo.ToString();
         }
 
-
-        private void readByteVariableExample()
-        {
-            try
-            {
-                double[] doubles = new double[10];
-                xrc.ReadByteVariable(0, doubles);
-                WriteLine("    Byte var: " + doubles[0].ToString());
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message);
-            }
-        }
 
         private void btnCurrentPos2SP_Click(object sender, EventArgs e)
         {
@@ -256,15 +255,22 @@ namespace MotomanRS2TCP
             UpdateUiSetpointPosition();
         }
 
-        private void btnSetPosVar_Click(object sender, EventArgs e)
+        private async void btnSetPosVar_Click(object sender, EventArgs e)
         {
-            xrc.WritePositionVariable(varIndex, posSP);
+            await xrc.WritePositionVariable(varIndex, posSP);
             GetPositionVariable();
         }
 
         private void btnGetPosVar_Click(object sender, EventArgs e)
         {
             GetPositionVariable();
+        }
+
+        private void readByteVariableExample()
+        {
+            double[] doubles = new double[10];
+            xrc.ReadByteVariable(0, doubles);
+            WriteLine("    Byte var: " + doubles[0].ToString());
         }
     }
 }
