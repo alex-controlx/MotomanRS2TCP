@@ -24,14 +24,17 @@ namespace MotomanRS2TCP
             this.FormClosing += Form1_FormClosing;
             label7.Text = uiUpdateCounter.ToString();
 
-            homePos.X = 1135;
-            homePos.Y = -145;
-            homePos.Z = 1060;
+            homePos.X = 1300;
+            homePos.Y = 0;
+            homePos.Z = 1000;
             homePos.Rx = 90;
-            homePos.Ry = 4;
-            homePos.Rz = 82;
+            homePos.Ry = 0;
+            homePos.Rz = 90;
             homePos.Formcode = 0;
             homePos.ToolNo = 0;
+
+            // copy Home Position to Setpoint array
+            Array.Copy(homePos.HostGetVarDataArray, posSP.HostGetVarDataArray, homePos.HostGetVarDataArray.Length);
 
             UpdateUiCurrentPosition();
             UpdateUiSetpointPosition();
@@ -67,7 +70,6 @@ namespace MotomanRS2TCP
 
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
-                xrc.AutoStatusUpdate = true;
 
                 WriteLine("TCP Starting server");
                 server = new NodeTcpListener(this, xrc, 4305);
@@ -208,7 +210,7 @@ namespace MotomanRS2TCP
         {
             if (xrc == null) return;
 
-            var currentPosition = xrc.GetCurrentPosition();
+            var currentPosition = xrc.GetCurrentPositionCached();
             if (label6.InvokeRequired)
             {
                 label6.Invoke(new Label6Delegate(UpdateUiCurrentPosition));
@@ -243,7 +245,7 @@ namespace MotomanRS2TCP
         {
             if (xrc == null) return;
 
-            var currentPosition = xrc.GetCurrentPosition();
+            var currentPosition = xrc.GetCurrentPositionCached();
             posSP.X = currentPosition[0];
             posSP.Y = currentPosition[1];
             posSP.Z = currentPosition[2];
@@ -271,6 +273,11 @@ namespace MotomanRS2TCP
             double[] doubles = new double[10];
             xrc.ReadByteVariable(0, doubles);
             WriteLine("    Byte var: " + doubles[0].ToString());
+        }
+
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            await xrc.StartJob("TO_POS_0.jbi");
         }
     }
 }

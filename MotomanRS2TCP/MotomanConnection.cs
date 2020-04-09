@@ -14,7 +14,8 @@ namespace MotomanRS2TCP
         #region member variables
 
         private short m_Handle = -1;
-        System.Windows.Forms.Timer StatusTimer = new System.Windows.Forms.Timer();
+        System.Windows.Forms.Timer StatusTimeout = new System.Windows.Forms.Timer();
+        System.Windows.Forms.Timer CommsChecker = new System.Windows.Forms.Timer();
         //private static Object m_FileAccessDirLock = new Object();
         //private Object m_YasnacAccessLock = new Object();
         private static string m_CommDir;
@@ -25,6 +26,7 @@ namespace MotomanRS2TCP
         private double[] currentPosition = new double[15];
         private bool m_AutoStatusUpdate = false;
         private bool m_commsError = true;
+        private long m_previousStatus_ms;
 
         #endregion
 
@@ -90,6 +92,7 @@ namespace MotomanRS2TCP
                 }
                 SetError("");
                 SetConnection(EnumComms.Connected);
+                AutoStatusUpdate = true;
             }
             else SetError("Could not get a handle. Check Hardware key!");
             //throw new Exception("Could not get a handle. Check Hardware key !");
@@ -116,10 +119,7 @@ namespace MotomanRS2TCP
             short sw1 = -1, sw2 = -1;
             short ret = CMotocom.BscGetStatus(m_Handle, ref sw1, ref sw2);
             if (ret != 0) {
-                Console.WriteLine("Error calling BscGetStatus in getGeneralStatus: " + ret.ToString());
-                SetError("Error calling BscGetStatus in getGeneralStatus");
-                m_commsError = true;
-
+                SetError("Error calling BscGetStatus");
             } else
             {
                 if (robotStatus.SetAndCheckSWs(sw1, sw2)) StatusChanged(this, null);
@@ -133,19 +133,109 @@ namespace MotomanRS2TCP
 
                 if (ret1 == -1)
                 {
-                    SetError("Error executing BscDCIGetPos");
-                    m_commsError = true;
+                    SetError("Error executing BscGetCartPos");
                 } else
                 {
                     currentPosition[13] = formCode;
                     currentPosition[14] = toolNo;
-                    m_commsError = false;
 
                     DispatchCurrentPosition(this, null);
+
+                    m_previousStatus_ms = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                 }
             }
             SetEvent(EnumEvent.Idle);
         }
+
+        private void StatusTimer_Tick(object sender, EventArgs e)
+        {
+            if (m_CurrentConnection != EnumComms.Connected || m_CurrentEvent != EnumEvent.Idle) return;
+            // the timer below behaves as a timeout
+            StatusTimeout.Stop();
+            ReadGeneralStatus();
+            StatusTimeout.Start();
+        }
+
+        private void CheckComms(object sender, EventArgs e)
+        {
+            
+            long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            if (now > m_previousStatus_ms + 2000 && !m_commsError)
+            {
+                m_commsError = true;
+                SetError("Communications to robot lost");
+            } else if (m_commsError && now < m_previousStatus_ms + 2000)
+            {
+                SetConnection(EnumComms.Connected);
+                m_commsError = false;
+            }
+        }
+
+        public bool AutoStatusUpdate
+        {
+            get
+            {
+                return m_AutoStatusUpdate;
+            }
+            set
+            {
+                m_AutoStatusUpdate = value;
+                if (m_AutoStatusUpdate)
+                {
+                    StatusTimeout.Interval = 200;
+                    StatusTimeout.Tick += new EventHandler(StatusTimer_Tick);
+                    StatusTimeout.Start();
+
+                    CommsChecker.Interval = 2000;
+                    CommsChecker.Tick += new EventHandler(CheckComms);
+                    CommsChecker.Start();
+                }
+                else
+                {
+                    StatusTimeout.Stop();
+                    CommsChecker.Stop();
+                }
+            }
+        }
+
+        private void SetError(string message)
+        {
+            m_Error = message;
+            ConnectionError?.Invoke(this, null);
+        }
+
+        private void SetConnection(string status)
+        {
+            Console.WriteLine("Connection Status is " + status);
+            m_CurrentConnection = status;
+            ConnectionStatus?.Invoke(this, null);
+        }
+
+        private void SetEvent(string eventStr)
+        {
+            m_CurrentEvent = eventStr;
+            EventStatus?.Invoke(this, null);
+        }
+
+        private bool isIdle()
+        {
+            return m_CurrentEvent == EnumEvent.Idle;
+        }
+
+        #endregion
+
+        public double[] GetCurrentPositionCached()
+        {
+            return (double[])currentPosition.Clone();
+        }
+
+
+
+
+
+
+
+
 
         public async void ReadByteVariable(short index, double[] posVarArray)
         {
@@ -155,7 +245,7 @@ namespace MotomanRS2TCP
 
             short ret = CMotocom.BscGetVarData(m_Handle, 0, index, ref posVarArray[0]);
             if (ret != 0) SetError("Error executing ReadByteVariable");
-                
+
             SetEvent(EnumEvent.Idle);
         }
 
@@ -195,69 +285,35 @@ namespace MotomanRS2TCP
         }
 
 
-
-        void StatusTimer_Tick(object sender, EventArgs e)
+        public async Task StartJob(string JobName)
         {
-            if (m_CurrentConnection != EnumComms.Connected || m_CurrentEvent != EnumEvent.Idle) return;
-            // the timer below behaves as a timeout
-            StatusTimer.Stop();
-            ReadGeneralStatus();
-            StatusTimer.Start();
-        }
-
-        public bool AutoStatusUpdate
-        {
-            get
+            if (m_commsError) return;
+            
+            if (!JobName.ToLower().Contains(".jbi"))
             {
-                return m_AutoStatusUpdate;
+                SetError("Error *.jbi jobname extension is missing !");
+                return;
             }
-            set
+            
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("StartJob");
+            short ret;
+
+            ret = CMotocom.BscSelectJob(m_Handle, JobName);
+            if (ret == 0)
             {
-                m_AutoStatusUpdate = value;
-                if (m_AutoStatusUpdate)
+                ret = CMotocom.BscServoOn(m_Handle);
+                if (ret != 0) SetError("Error executing BscServoON err:" + ret.ToString());
+                else
                 {
-                    StatusTimer.Interval = 2000;
-                    StatusTimer.Tick += new EventHandler(StatusTimer_Tick);
-                    StatusTimer.Start();
-
+                    ret = CMotocom.BscStartJob(m_Handle);
+                    if (ret != 0) SetError("Error starting job !");
                 }
-                else StatusTimer.Stop();
             }
+            else SetError("Error selecting job !");
+
+            SetEvent(EnumEvent.Idle);
         }
-
-        private void SetError(string message)
-        {
-            m_Error = message;
-            ConnectionError?.Invoke(this, null);
-        }
-
-        private void SetConnection(string status)
-        {
-            Console.WriteLine("Connection Status is " + status);
-            m_CurrentConnection = status;
-            ConnectionStatus?.Invoke(this, null);
-        }
-
-        private void SetEvent(string eventStr)
-        {
-            m_CurrentEvent = eventStr;
-            EventStatus?.Invoke(this, null);
-        }
-
-        private bool isIdle()
-        {
-            return m_CurrentEvent == EnumEvent.Idle;
-        }
-
-        #endregion
-
-
-        public double[] GetCurrentPosition()
-        {
-            return (double[])currentPosition.Clone();
-        }
-
-
 
 
 

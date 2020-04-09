@@ -44,6 +44,7 @@
             this.btnHomePos = new System.Windows.Forms.Button();
             this.btnSetPosVar = new System.Windows.Forms.Button();
             this.btnGetPosVar = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // listBox1
@@ -197,11 +198,22 @@
             this.btnGetPosVar.UseVisualStyleBackColor = true;
             this.btnGetPosVar.Click += new System.EventHandler(this.btnGetPosVar_Click);
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(304, 121);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(115, 23);
+            this.button1.TabIndex = 20;
+            this.button1.Text = "MoveJ To SP";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(992, 439);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.btnGetPosVar);
             this.Controls.Add(this.btnSetPosVar);
             this.Controls.Add(this.btnHomePos);
@@ -242,6 +254,7 @@
         private System.Windows.Forms.Button btnHomePos;
         private System.Windows.Forms.Button btnSetPosVar;
         private System.Windows.Forms.Button btnGetPosVar;
+        private System.Windows.Forms.Button button1;
     }
 }
 
