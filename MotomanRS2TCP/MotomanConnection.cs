@@ -5,6 +5,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace MotomanRS2TCP
 {
@@ -27,6 +28,11 @@ namespace MotomanRS2TCP
         private bool m_AutoStatusUpdate = false;
         private bool m_commsError = true;
         private long m_previousStatus_ms;
+        private readonly CRobPosVar position99 = new CRobPosVar();
+
+        // second home position  X = 1345; Y = 0; Z = 980; Rx = 180; Ry = -90; Rz = 0;  Formcode = 0; ToolNo = 0;
+        // working home position X = 1345; Y = 0; Z = 980; Rx = 90;  Ry = 0;   Rz = 90; Formcode = 0; ToolNo = 0;
+        private readonly CRobPosVar homePos = new CRobPosVar(FrameType.Robot, 1345, 0, 980, 90, 0, 90, 0, 0);
 
         #endregion
 
@@ -37,12 +43,12 @@ namespace MotomanRS2TCP
         public event EventHandler ConnectionStatus;
         public event EventHandler ConnectionError;
         public event EventHandler EventStatus;
-        
+
         #endregion
 
         #region constructor
 
-        public MotomanConnection() {}
+        public MotomanConnection() { }
 
         static MotomanConnection()
         {
@@ -98,16 +104,15 @@ namespace MotomanRS2TCP
             //throw new Exception("Could not get a handle. Check Hardware key !");
         }
 
-        public async void Disconnect()
+        public async Task Disconnect()
         {
-            if (m_Handle >= 0)
-            {
-                SetConnection(EnumComms.Disconnecting);
-                await TaskEx.WaitUntil(isIdle);
-                CMotocom.BscDisConnect(m_Handle);
-                CMotocom.BscClose(m_Handle);
-                SetConnection(EnumComms.Disconnected);
-            }
+            if (m_Handle < 0) return;
+            
+            SetConnection(EnumComms.Disconnecting);
+            await TaskEx.WaitUntil(isIdle);
+            CMotocom.BscDisConnect(m_Handle);
+            CMotocom.BscClose(m_Handle);
+            SetConnection(EnumComms.Disconnected);
         }
 
 
@@ -124,11 +129,12 @@ namespace MotomanRS2TCP
             {
                 if (robotStatus.SetAndCheckSWs(sw1, sw2)) StatusChanged(this, null);
 
-                StringBuilder framename = new StringBuilder("ROBOT");
+                StringBuilder framename = new StringBuilder("ROBOT"); // BASE  ROBOT
                 int formCode = 0;
                 short isExternal = 0;
                 short toolNo = 0;
                 short ret1 = CMotocom.BscGetCartPos(
+                //short ret1 = CMotocom.BscIsRobotPos(
                     m_Handle, framename, isExternal, ref formCode, ref toolNo, ref currentPosition[0]);
 
                 if (ret1 == -1)
@@ -182,7 +188,7 @@ namespace MotomanRS2TCP
                 m_AutoStatusUpdate = value;
                 if (m_AutoStatusUpdate)
                 {
-                    StatusTimeout.Interval = 200;
+                    StatusTimeout.Interval = 100;
                     StatusTimeout.Tick += new EventHandler(StatusTimer_Tick);
                     StatusTimeout.Start();
 
@@ -227,6 +233,13 @@ namespace MotomanRS2TCP
         public double[] GetCurrentPositionCached()
         {
             return (double[])currentPosition.Clone();
+        }
+
+        public CRobotStatus GetCopyOfRobotStatus()
+        {
+            CRobotStatus cRobotStatus = new CRobotStatus();
+            cRobotStatus.SetAndCheckSWs(robotStatus.sw1, robotStatus.sw2);
+            return cRobotStatus;
         }
 
 
@@ -316,6 +329,128 @@ namespace MotomanRS2TCP
         }
 
 
+        //public async Task MoveToHomePosition()
+        //{
+        //    MoveToPosition(true);
+        //    //await TaskEx.WaitUntil(isIdle);
+        //    //SetEvent("MoveToHomePosition");
+        //    //short ret;
+        //    //string moveHomeJob = "TO_HOME.jbi";
+        //    //double[] speed = new double[10];
+        //    //speed[0] = 2000; // is VJ=20.00
+
+        //    //// write position 99
+        //    //StringBuilder StringVal = new StringBuilder(256);
+        //    //double[] PosVarArray = homePos.HostGetVarDataArray;
+        //    //ret = CMotocom.BscHostPutVarData(m_Handle, 4, 99, ref PosVarArray[0], StringVal);
+        //    //if (ret != 0) SetError("Error executing MoveToHomePosition:WritePositionVariable");
+        //    //else
+        //    //{
+        //    //    // read position 99
+        //    //    StringVal = new StringBuilder(256);
+        //    //    double[] readPosition = new double[10];
+        //    //    ret = CMotocom.BscHostGetVarData(m_Handle, 4, 99, ref readPosition[0], StringVal);
+        //    //    if (ret != 0) SetError("Error executing MoveToHomePosition:ReadPositionVariable");
+        //    //    else
+        //    //    {
+        //    //        // compare the set home position with read from robot
+        //    //        if (!readPosition.SequenceEqual(homePos.HostGetVarDataArray)) SetError("MoveToHomePosition: arrays are not equal.");
+        //    //        else
+        //    //        {
+        //    //            ret = CMotocom.BscPutVarData(m_Handle, 1, 99, ref speed[0]);
+        //    //            if (ret != 0) SetError("Error executing ReadByteVariable");
+        //    //            else
+        //    //            {
+        //    //                // select job
+        //    //                ret = CMotocom.BscSelectJob(m_Handle, moveHomeJob);
+        //    //                if (ret != 0) SetError("Error selecting job at MoveToHomePosition");
+        //    //                else
+        //    //                {
+        //    //                    // run the job
+        //    //                    ret = CMotocom.BscStartJob(m_Handle);
+        //    //                    if (ret != 0) SetError("Error starting job at MoveToHomePosition!");
+        //    //                }
+        //    //            }
+        //    //        }
+        //    //    }
+        //    //}
+        //    //SetEvent(EnumEvent.Idle);
+        //}
+
+
+        public async Task MoveToPosition(bool isHome, CRobPosVar posVar = null)
+        {
+            if (!isHome && posVar == null) return;
+
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("MoveToPosition");
+            short ret = 0;
+            double speed = 10.00; // is VJ=20.00
+            StringBuilder framename = new StringBuilder("ROBOT"); // ROBOT
+
+            CRobPosVar pv = (isHome) ? homePos : posVar;
+            if (pv == null) return;
+            double[] pos = { pv.X, pv.Y, pv.Z, pv.Rx, pv.Ry, pv.Rz, 0, 0, 0, 0, 0, 0};
+
+            Console.WriteLine(String.Join(", ", pos.Select(p => p.ToString()).ToArray()));
+
+            ret = CMotocom.BscMovj(m_Handle, speed, framename, 0, 0, ref pv.HostGetVarDataArray[0]);
+            if (ret != 0) SetError("Error MoveToPosition:BscMovj");
+
+
+
+            //short ret = 0;
+            //string moveHomeJob = (isHome) ? "TO_HOME.jbi" : "TO_POS_0.jbi";
+            //double[] speed = new double[10];
+            //speed[0] = 2000; // is VJ=20.00
+            //short varNo = isHome ? (short)99 : (short)0;
+
+            //CRobPosVar position = (isHome) ? homePos : posVar;
+
+            //// stop any current jobs
+            //ret = CMotocom.BscHoldOn(m_Handle);
+            //if (ret != 0) SetError("Error MoveToPosition:BscHoldOn");
+            //else
+            //{
+            //    // write position 99
+            //    StringBuilder StringVal = new StringBuilder(256);
+            //    double[] PosVarArray = position.HostGetVarDataArray;
+            //    ret = CMotocom.BscHostPutVarData(m_Handle, 4, varNo, ref PosVarArray[0], StringVal);
+            //    if (ret != 0) SetError("Error executing MoveToPosition:WritePositionVariable");
+            //    else
+            //    {
+            //        // read position 99
+            //        StringVal = new StringBuilder(256);
+            //        double[] readPosition = new double[10];
+            //        ret = CMotocom.BscHostGetVarData(m_Handle, 4, varNo, ref readPosition[0], StringVal);
+            //        if (ret != 0) SetError("Error executing MoveToPosition:ReadPositionVariable");
+            //        else
+            //        {
+            //            // compare the set home position with read from robot
+            //            if (!readPosition.SequenceEqual(position.HostGetVarDataArray)) SetError("MoveToPosition: arrays are not equal.");
+            //            else
+            //            {
+            //                ret = CMotocom.BscPutVarData(m_Handle, 1, varNo, ref speed[0]);
+            //                if (ret != 0) SetError("Error executing MoveToPosition:ReadByteVariable");
+            //                else
+            //                {
+            //                    // select job
+            //                    ret = CMotocom.BscSelectJob(m_Handle, moveHomeJob);
+            //                    if (ret != 0) SetError("Error selecting job at MoveToPosition");
+            //                    else
+            //                    {
+            //                        // run the job
+            //                        ret = CMotocom.BscStartJob(m_Handle);
+            //                        if (ret != 0) SetError("Error starting job at MoveToPosition!");
+            //                    }
+            //                }
+            //            }
+            //        }
+            //    }
+            //}
+            SetEvent(EnumEvent.Idle);
+        }
+
 
 
 
@@ -358,6 +493,11 @@ namespace MotomanRS2TCP
         }
 
         public bool CommsError { get => m_commsError; }
+
+        public double[] HomePosDataArray
+        {
+            get { return homePos.HostGetVarDataArray; }
+        }
 
         #endregion
     }

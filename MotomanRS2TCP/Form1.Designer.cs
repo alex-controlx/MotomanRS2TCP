@@ -61,9 +61,9 @@
             // 
             this.btnUp.Location = new System.Drawing.Point(15, 15);
             this.btnUp.Name = "btnUp";
-            this.btnUp.Size = new System.Drawing.Size(75, 23);
+            this.btnUp.Size = new System.Drawing.Size(102, 23);
             this.btnUp.TabIndex = 2;
-            this.btnUp.Text = "Up";
+            this.btnUp.Text = "Position A";
             this.btnUp.UseVisualStyleBackColor = true;
             this.btnUp.Click += new System.EventHandler(this.btnUp_Click);
             // 
@@ -71,9 +71,9 @@
             // 
             this.btnDown.Location = new System.Drawing.Point(15, 44);
             this.btnDown.Name = "btnDown";
-            this.btnDown.Size = new System.Drawing.Size(75, 23);
+            this.btnDown.Size = new System.Drawing.Size(102, 23);
             this.btnDown.TabIndex = 3;
-            this.btnDown.Text = "Down";
+            this.btnDown.Text = "Position B";
             this.btnDown.UseVisualStyleBackColor = true;
             this.btnDown.Click += new System.EventHandler(this.btnDown_Click);
             // 
@@ -170,11 +170,11 @@
             // 
             // btnHomePos
             // 
-            this.btnHomePos.Location = new System.Drawing.Point(15, 73);
+            this.btnHomePos.Location = new System.Drawing.Point(553, 121);
             this.btnHomePos.Name = "btnHomePos";
-            this.btnHomePos.Size = new System.Drawing.Size(75, 23);
+            this.btnHomePos.Size = new System.Drawing.Size(139, 23);
             this.btnHomePos.TabIndex = 17;
-            this.btnHomePos.Text = "Home";
+            this.btnHomePos.Text = "Move to Home";
             this.btnHomePos.UseVisualStyleBackColor = true;
             this.btnHomePos.Click += new System.EventHandler(this.btnHomePos_Click);
             // 

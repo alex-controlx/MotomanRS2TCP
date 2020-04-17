@@ -11,11 +11,10 @@ namespace MotomanRS2TCP
         private delegate void Label9Delegate(object sender, EventArgs e);
         private delegate void Label5Delegate(CRobPosVar posVar);
         private delegate void Label6Delegate();
-        private NodeTcpListener server;
+        private NodeSocketIO ioClient;
         private MotomanConnection xrc;
         private int uiUpdateCounter = 0;
         private readonly CRobPosVar posSP = new CRobPosVar();
-        private readonly CRobPosVar homePos = new CRobPosVar();
         private readonly short varIndex = 0;
 
         public Form1()
@@ -24,34 +23,24 @@ namespace MotomanRS2TCP
             this.FormClosing += Form1_FormClosing;
             label7.Text = uiUpdateCounter.ToString();
 
-            homePos.X = 1300;
-            homePos.Y = 0;
-            homePos.Z = 1000;
-            homePos.Rx = 90;
-            homePos.Ry = 0;
-            homePos.Rz = 90;
-            homePos.Formcode = 0;
-            homePos.ToolNo = 0;
-
-            // copy Home Position to Setpoint array
-            Array.Copy(homePos.HostGetVarDataArray, posSP.HostGetVarDataArray, homePos.HostGetVarDataArray.Length);
-
-            UpdateUiCurrentPosition();
-            UpdateUiSetpointPosition();
             StartApp();
         }
 
 
-        private void Form1_FormClosing(object sender, EventArgs e)
+        private async void Form1_FormClosing(object sender, EventArgs e)
         {
+
+            if (ioClient != null)
+            {
+                Console.WriteLine("Stopping Socket IO");
+                await ioClient.Disconnect();
+            }
             if (xrc != null)
             {
-                xrc.Disconnect();
+                await xrc.Disconnect();
                 xrc = null;
                 Console.WriteLine("Stopping XRC connection");
             }
-            Console.WriteLine("Stopping TCP server");
-            if (server != null)  server.StopServer();
         }
 
 
@@ -60,21 +49,27 @@ namespace MotomanRS2TCP
             try
             {
                 xrc = new MotomanConnection();
-                xrc.StatusChanged += new EventHandler(StatusChanged); // Register Eventhandler for status change
-                xrc.ConnectionStatus += new EventHandler(rc1_connectionStatus); // Register Eventhandler for status change
-                xrc.EventStatus += new EventHandler(rc1_eventStatus); // Register Eventhandler for status change
-                xrc.ConnectionError += new EventHandler(rc1_errorStatus); // Register Eventhandler for status change
+                ioClient = new NodeSocketIO(xrc);
+
+                xrc.StatusChanged += new EventHandler(StatusChanged);
+                xrc.ConnectionStatus += new EventHandler(rc1_connectionStatus);
+                xrc.EventStatus += new EventHandler(rc1_eventStatus);
+                xrc.ConnectionError += new EventHandler(rc1_errorStatus);
                 xrc.DispatchCurrentPosition += new EventHandler(
                     (object sender, EventArgs e) => { UpdateUiCurrentPosition(); }
                 );
 
+                // copy Home Position to Setpoint array
+                Array.Copy(xrc.HomePosDataArray, posSP.HostGetVarDataArray, xrc.HomePosDataArray.Length);
+
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
 
-                WriteLine("TCP Starting server");
-                server = new NodeTcpListener(this, xrc, 4305);
-            }
-            catch (Exception ex)
+                WriteLine("Starting Socket IO");
+                ioClient.Connect();
+
+                UpdateUiSetpointPosition();
+            } catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
@@ -96,7 +91,6 @@ namespace MotomanRS2TCP
             else
             {
                 label9.Text = xrc.CurrentEvent;
-
             }
         }
 
@@ -109,7 +103,24 @@ namespace MotomanRS2TCP
         private void StatusChanged(object sender, EventArgs e)
         {
             if (xrc == null) return;
+            
+            ioClient.SendStatus();
             WriteLine("    XRC Status: " + xrc.RobotStatusJson);
+
+            CRobotStatus status = xrc.GetCopyOfRobotStatus();
+            if (status.isServoOn)
+            {
+                btnUp.Enabled = true;
+                btnDown.Enabled = true;
+                button1.Enabled = true;
+                btnHomePos.Enabled = true;
+            } else
+            {
+                btnUp.Enabled = false;
+                btnDown.Enabled = false;
+                button1.Enabled = false;
+                btnHomePos.Enabled = false;
+            }
         }
 
         public void WriteLine(string message)
@@ -133,23 +144,34 @@ namespace MotomanRS2TCP
         }
 
 
-        private void btnUp_Click(object sender, EventArgs e)
+        private async void btnUp_Click(object sender, EventArgs e)
         {
-            posSP.X = posSP.X + 10;
-            UpdateUiSetpointPosition();
+            // Position A
+            //  1453.801, -787.187, -258.498, 88.66, -0.03, 87.77
+
+            if (xrc == null) return;
+            CRobPosVar posA = new CRobPosVar(FrameType.Robot, 1453.801, -787.187, -258.498, 88.66, -0.03, 87.77, 0, 0);
+            await xrc.MoveToPosition(false, posA);
+
+            //posSP.X = posSP.X + 10;
+            //UpdateUiSetpointPosition();
         }
 
         private void btnDown_Click(object sender, EventArgs e)
         {
-            posSP.X = posSP.X - 10;
-            UpdateUiSetpointPosition();
+            // Position B
+            //  1247.378, 668.79, -407.418, 88.67, -0.05, -178.18
+            if (xrc == null) return;
+            CRobPosVar posB = new CRobPosVar(FrameType.Robot, 1247.378, 668.79, -407.418, 88.67, -0.05, -178.18, 0, 0);
+            xrc.MoveToPosition(false, posB);
+
+            //posSP.X = posSP.X - 10;
+            //UpdateUiSetpointPosition();
         }
 
         private void btnHomePos_Click(object sender, EventArgs e)
         {
-            // copy Home Position to Setpoint array
-            Array.Copy(homePos.HostGetVarDataArray, posSP.HostGetVarDataArray, homePos.HostGetVarDataArray.Length);
-            UpdateUiSetpointPosition();
+            xrc.MoveToPosition(true);
         }
 
 
@@ -211,6 +233,7 @@ namespace MotomanRS2TCP
             if (xrc == null) return;
 
             var currentPosition = xrc.GetCurrentPositionCached();
+            ioClient.SendPosition(currentPosition);
             if (label6.InvokeRequired)
             {
                 label6.Invoke(new Label6Delegate(UpdateUiCurrentPosition));
