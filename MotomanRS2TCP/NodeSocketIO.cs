@@ -52,8 +52,8 @@ namespace MotomanRS2TCP
 
             client.OnConnected += async () =>
             {
-                //// Emit test event, send string.
-                //await client.EmitAsync("test", "EmitTest");
+                // Emit identification eevent to the server
+                await client.EmitAsync("i-am-robot");
 
                 //// Emit test event, send object.
                 //await client.EmitAsync("test", new { code = 200 });
@@ -64,7 +64,7 @@ namespace MotomanRS2TCP
                 await client.ConnectAsync();
             } catch (AggregateException e)
             {
-                Console.WriteLine(e.Message);
+                //Console.WriteLine(e.Message);
                 Client_OnClosed(ServerCloseReason.ClosedByServer);
             }
             
@@ -86,7 +86,7 @@ namespace MotomanRS2TCP
 
         private void Client_OnClosed(ServerCloseReason serverCloseReason)
         {
-            Console.WriteLine("Disconnected from server, " + serverCloseReason.ToString());
+            //Console.WriteLine("Disconnected from server, " + serverCloseReason.ToString());
             isConnecting = false;
             isConnected = false;
             if (!isDisconnectRequested && serverCloseReason == ServerCloseReason.ClosedByServer) SetTimer();
