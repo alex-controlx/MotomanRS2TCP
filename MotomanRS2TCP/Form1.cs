@@ -26,7 +26,7 @@ namespace MotomanRS2TCP
             this.FormClosing += Form1_FormClosing;
             label7.Text = uiUpdateCounter.ToString();
 
-            speedSP = 10;
+            speedSP = 200;
             numericUpDown1.Value = speedSP;
 
             StartApp();
@@ -66,7 +66,7 @@ namespace MotomanRS2TCP
                 );
 
                 // copy Home Position to Setpoint array
-                Array.Copy(xrc.HomePosDataArray, posSP.HostGetVarDataArray, xrc.HomePosDataArray.Length);
+                Array.Copy(xrc.HomePosDataArray, posSP.HostGetVarDataArray, posSP.HostGetVarDataArray.Length);
 
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
@@ -77,7 +77,7 @@ namespace MotomanRS2TCP
                 UpdateUiSetpointPosition();
             } catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show("StartApp(): " + ex.Message);
             }
         }
 
@@ -149,61 +149,10 @@ namespace MotomanRS2TCP
             }
         }
 
-
-        private async void btnUp_Click(object sender, EventArgs e)
-        {
-            // Position A
-            //  1453.801, -787.187, -258.498, 88.66, -0.03, 87.77
-
-            if (xrc == null) return;
-            CRobPosVar posA = new CRobPosVar(FrameType.Robot, 1453.801, -787.187, -258.498, 90.01, 0.00, 90.08, 0, 0);
-            await xrc.MoveToPosition(false, speedSP, posA);
-
-            //posSP.X = posSP.X + 10;
-            //UpdateUiSetpointPosition();
-        }
-
-        private void btnDown_Click(object sender, EventArgs e)
-        {
-            // Position B
-            //  1247.378, 668.79, -407.418, 88.67, -0.05, -178.18
-            if (xrc == null) return;
-            CRobPosVar posB = new CRobPosVar(FrameType.Robot, 1247.378, 668.79, -407.418, 90.01, 0.00, -175, 0, 0);
-            xrc.MoveToPosition(false, speedSP, posB);
-
-            //posSP.X = posSP.X - 10;
-            //UpdateUiSetpointPosition();
-        }
-
         private void btnHomePos_Click(object sender, EventArgs e)
         {
-            xrc.MoveToPosition(true, speedSP);
+            xrc.MoveToHome1();
         }
-
-
-        private void GetPositionVariable()
-        {
-            if (xrc == null) return;
-
-            // starting new thread to tests multithread action
-            new Thread(new ThreadStart( async () =>
-            {
-                CRobPosVar posVar = new CRobPosVar();
-                await xrc.ReadPositionVariable(varIndex, posVar);
-
-                Console.WriteLine("X:" + posVar.X.ToString() + " " +
-                            "Y:" + posVar.Y.ToString() + " " +
-                            "Z:" + posVar.Z.ToString() + " " +
-                            "Rx:" + posVar.Rx.ToString() + " " +
-                            "Ry:" + posVar.Ry.ToString() + " " +
-                            "Rz:" + posVar.Rz.ToString() + " " +
-                            "F:" + posVar.Formcode.ToString() + " " +
-                            "Tool:" + posVar.ToolNo.ToString());
-
-                UpdateUiPositionVariable(posVar);
-            })).Start();   
-        }
-
 
         private void UpdateUiPositionVariable(CRobPosVar posVar)
         {
@@ -286,15 +235,11 @@ namespace MotomanRS2TCP
             UpdateUiSetpointPosition();
         }
 
-        private async void btnSetPosVar_Click(object sender, EventArgs e)
+        private async void btnGetPosVar_Click(object sender, EventArgs e)
         {
-            await xrc.WritePositionVariable(varIndex, posSP);
-            GetPositionVariable();
-        }
-
-        private void btnGetPosVar_Click(object sender, EventArgs e)
-        {
-            GetPositionVariable();
+            CRobPosVar posVar = new CRobPosVar();
+            await xrc.ReadPositionVariable(varIndex, posVar);
+            UpdateUiPositionVariable(posVar);
         }
 
         private void readByteVariableExample()
@@ -306,13 +251,16 @@ namespace MotomanRS2TCP
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            await xrc.StartJob("TO_POS_0.jbi");
+            await xrc.MoveByJob(false, posSP);
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
             speedSP = numericUpDown1.Value;
         }
+
+        private bool isOperating() { return xrc.isOperating(); }
+        private bool isNotOperating() { return !xrc.isOperating(); }
 
         private async void button2_Click(object sender, EventArgs e)
         {
@@ -326,26 +274,32 @@ namespace MotomanRS2TCP
             button2.Enabled = true;
             while (isCycling)
             {
-                CRobPosVar posA = new CRobPosVar(FrameType.Robot, 1453.801, -787.187, -258.498, 88.66, -0.03, 87.77, 0, 0);
-                await xrc.MoveToPosition(false, speedSP, posA);
+                double[] posA = { -600, -1500, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                await xrc.MoveToPosition(posA, (double)speedSP);
                 await TaskEx.WaitUntil(isOperating);
                 await TaskEx.WaitUntil(isNotOperating);
                 await Task.Delay(200);
-                CRobPosVar posB = new CRobPosVar(FrameType.Robot, 1247.378, 668.79, -407.418, 88.67, -0.05, -178.18, 0, 0);
-                xrc.MoveToPosition(false, speedSP, posB);
+
+                await xrc.MoveToHome1();
                 await TaskEx.WaitUntil(isOperating);
                 await TaskEx.WaitUntil(isNotOperating);
                 await Task.Delay(200);
-                xrc.MoveToPosition(true, speedSP);
+
+                if (!isCycling) return;
+
+                double[] posB = { 800, -1600, -400, 0, 85, 0, 0, 0, 0, 0, 0, 0 };
+                await xrc.MoveToPosition(posB, (double)speedSP);
+                await TaskEx.WaitUntil(isOperating);
+                await TaskEx.WaitUntil(isNotOperating);
+                await Task.Delay(200);
+
+                await xrc.MoveToHome1();
                 await TaskEx.WaitUntil(isOperating);
                 await TaskEx.WaitUntil(isNotOperating);
                 await Task.Delay(200);
             }
 
         }
-
-        private bool isOperating() { return xrc.isOperating(); }
-        private bool isNotOperating() { return !xrc.isOperating(); }
 
         private void button4_Click(object sender, EventArgs e)
         {
@@ -374,17 +328,58 @@ namespace MotomanRS2TCP
         private void ShiftRobit(double up, double down, double right,  double left)
         {
             if (xrc == null) return;
-            var currentPosition = xrc.GetCurrentPositionCached();
-            CRobPosVar newPos = new CRobPosVar();
-            newPos.X = currentPosition[0];
-            newPos.Y = currentPosition[1] + right - left;
-            newPos.Z = currentPosition[2] + up - down;
-            newPos.Rx = currentPosition[3];
-            newPos.Ry = currentPosition[4];
-            newPos.Rz = currentPosition[5];
-            newPos.Formcode = Convert.ToInt16(currentPosition[13]);
-            newPos.ToolNo = Convert.ToInt16(currentPosition[14]);
-            xrc.MoveToPosition(false, speedSP, newPos);
+            double[] newPos = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            newPos[0] = newPos[0] + left - right;
+            newPos[1] = newPos[1] + up - down;
+            //newPos[2] = newPos[2] + fwd - bck;
+
+            //var currentPosition = xrc.GetCurrentPositionCached();
+            //CRobPosVar newPos = new CRobPosVar();
+            //newPos.Frame = FrameType.Robot;
+            //newPos.X = currentPosition[0];
+            //newPos.Y = currentPosition[1] + right - left;
+            //newPos.Z = currentPosition[2] + up - down;
+            //newPos.Rx = currentPosition[3];
+            //newPos.Ry = currentPosition[4];
+            //newPos.Rz = currentPosition[5];
+            //newPos.Formcode = Convert.ToInt16(currentPosition[13]);
+            //newPos.ToolNo = Convert.ToInt16(currentPosition[14]);
+            xrc.MoveToPosition(newPos, (double)speedSP);
+        }
+
+        private async void btnUp_Click(object sender, EventArgs e)
+        {
+            // Position A
+            //  1453.801, -787.187, -258.498, 88.66, -0.03, 87.77
+
+            if (xrc == null) return;
+
+            // 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01 => MAX X: (900, 1650) Y: (-735, 735) Z: (-1100)
+            //  | +-735  |  -2000,0  |  -445,305   |  0  |  +-89    |  0
+            //  |  -R+L  |  -Dn  +Up |  -Bck +Fwd  |  0  | -ACW+CW  |  0
+            double[] posA = { -600, -1500, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            await xrc.MoveToPosition(posA, (double)speedSP);
+
+            //posSP.X = posSP.X + 10;
+            //UpdateUiSetpointPosition();
+        }
+
+        private async void btnDown_Click(object sender, EventArgs e)
+        {
+            // Position B
+            //  1247.378, 668.79, -407.418, 88.67, -0.05, -178.18
+            if (xrc == null) return;
+            //CRobPosVar posB = new CRobPosVar(FrameType.Robot, 1247.378, 668.79, -407.418, 90.01, 0.00, -175, 0, 0);
+            //xrc.MoveByJob(false, speedSP, posB);
+
+            // 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01 => MAX X: (900, 1650) Y: (-735, 735) Z: (-1100)
+            //  | +-735  |  -2000,0  |  -445,305   |  0  |  +-89    |  0
+            //  |  -R+L  |  -Dn  +Up |  -Bck +Fwd  |  0  | -CW+ACW  |  0
+            double[] posB = { 800, -1500, -400, 0, 85, 0, 0, 0, 0, 0, 0, 0 };
+            await xrc.MoveToPosition(posB, (double)speedSP);
+
+            //posSP.X = posSP.X - 10;
+            //UpdateUiSetpointPosition();
         }
     }
 }

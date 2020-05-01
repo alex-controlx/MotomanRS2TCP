@@ -42,7 +42,6 @@
             this.label9 = new System.Windows.Forms.Label();
             this.btnCurrentPos2SP = new System.Windows.Forms.Button();
             this.btnHomePos = new System.Windows.Forms.Button();
-            this.btnSetPosVar = new System.Windows.Forms.Button();
             this.btnGetPosVar = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
@@ -186,16 +185,6 @@
             this.btnHomePos.UseVisualStyleBackColor = true;
             this.btnHomePos.Click += new System.EventHandler(this.btnHomePos_Click);
             // 
-            // btnSetPosVar
-            // 
-            this.btnSetPosVar.Location = new System.Drawing.Point(304, 51);
-            this.btnSetPosVar.Name = "btnSetPosVar";
-            this.btnSetPosVar.Size = new System.Drawing.Size(46, 23);
-            this.btnSetPosVar.TabIndex = 18;
-            this.btnSetPosVar.Text = "Set";
-            this.btnSetPosVar.UseVisualStyleBackColor = true;
-            this.btnSetPosVar.Click += new System.EventHandler(this.btnSetPosVar_Click);
-            // 
             // btnGetPosVar
             // 
             this.btnGetPosVar.Location = new System.Drawing.Point(356, 51);
@@ -219,6 +208,11 @@
             // numericUpDown1
             // 
             this.numericUpDown1.Location = new System.Drawing.Point(15, 101);
+            this.numericUpDown1.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
             this.numericUpDown1.Name = "numericUpDown1";
             this.numericUpDown1.Size = new System.Drawing.Size(102, 22);
             this.numericUpDown1.TabIndex = 21;
@@ -229,9 +223,9 @@
             this.label10.AutoSize = true;
             this.label10.Location = new System.Drawing.Point(12, 81);
             this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(69, 17);
+            this.label10.Size = new System.Drawing.Size(90, 17);
             this.label10.TabIndex = 22;
-            this.label10.Text = "Speed, %";
+            this.label10.Text = "Speed, mm/s";
             // 
             // button2
             // 
@@ -297,7 +291,6 @@
             this.Controls.Add(this.numericUpDown1);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.btnGetPosVar);
-            this.Controls.Add(this.btnSetPosVar);
             this.Controls.Add(this.btnHomePos);
             this.Controls.Add(this.btnCurrentPos2SP);
             this.Controls.Add(this.label9);
@@ -335,7 +328,6 @@
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Button btnCurrentPos2SP;
         private System.Windows.Forms.Button btnHomePos;
-        private System.Windows.Forms.Button btnSetPosVar;
         private System.Windows.Forms.Button btnGetPosVar;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.NumericUpDown numericUpDown1;
