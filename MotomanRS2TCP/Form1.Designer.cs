@@ -51,7 +51,10 @@
             this.button4 = new System.Windows.Forms.Button();
             this.button5 = new System.Windows.Forms.Button();
             this.button6 = new System.Windows.Forms.Button();
+            this.portNumber = new System.Windows.Forms.NumericUpDown();
+            this.btnConnect = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.portNumber)).BeginInit();
             this.SuspendLayout();
             // 
             // listBox1
@@ -61,7 +64,7 @@
             this.listBox1.ItemHeight = 16;
             this.listBox1.Location = new System.Drawing.Point(12, 167);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(968, 260);
+            this.listBox1.Size = new System.Drawing.Size(968, 228);
             this.listBox1.TabIndex = 1;
             // 
             // btnUp
@@ -277,11 +280,35 @@
             this.button6.UseVisualStyleBackColor = true;
             this.button6.Click += new System.EventHandler(this.button6_Click);
             // 
+            // portNumber
+            // 
+            this.portNumber.Location = new System.Drawing.Point(12, 405);
+            this.portNumber.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.portNumber.Name = "portNumber";
+            this.portNumber.Size = new System.Drawing.Size(102, 22);
+            this.portNumber.TabIndex = 28;
+            // 
+            // btnConnect
+            // 
+            this.btnConnect.Location = new System.Drawing.Point(127, 404);
+            this.btnConnect.Name = "btnConnect";
+            this.btnConnect.Size = new System.Drawing.Size(102, 23);
+            this.btnConnect.TabIndex = 29;
+            this.btnConnect.Text = "Connect";
+            this.btnConnect.UseVisualStyleBackColor = true;
+            this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(992, 439);
+            this.Controls.Add(this.btnConnect);
+            this.Controls.Add(this.portNumber);
             this.Controls.Add(this.button6);
             this.Controls.Add(this.button5);
             this.Controls.Add(this.button4);
@@ -308,6 +335,7 @@
             this.Name = "Form1";
             this.Text = "Motoman RS2TCP";
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.portNumber)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -337,6 +365,8 @@
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.NumericUpDown portNumber;
+        private System.Windows.Forms.Button btnConnect;
     }
 }
 

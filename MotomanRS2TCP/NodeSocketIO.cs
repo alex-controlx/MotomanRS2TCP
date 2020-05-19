@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SocketIOClient;
 using System;
 using System.Collections.Generic;
@@ -37,8 +38,9 @@ namespace MotomanRS2TCP
             client.OnConnected += Client_OnConnected;
 
             // Listen server events
-            client.On("test", res =>
+            client.On("toRobot-moveToLoadingHome", async res =>
             {
+                await xrc.MoveToHome1();
                 //Console.WriteLine(res.Text);
                 // Next, you might parse the data in this way.
                 //var obj = JsonConvert.DeserializeObject<T>(res.Text);
@@ -50,11 +52,36 @@ namespace MotomanRS2TCP
                 // ...
             });
 
+            client.On("toRobot-moveToPosition", async res =>
+            {
+
+                Console.WriteLine(res.Text);
+                // Next, you might parse the data in this way.
+                //var obj = JsonConvert.DeserializeObject<T>(res.Text);
+                // Or, read some fields
+                var jobj = JObject.Parse(res.Text);
+                double speed = jobj.Value<double>("speed");
+                //double[] parsedPos = jobj.Value<double[]>("coordinates");
+                double[] parsedPos = jobj["coordinates"].Select(jv => (double)jv).ToArray();
+                double[] pos = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                pos[0] = parsedPos[0];
+                pos[1] = parsedPos[1];
+                pos[2] = parsedPos[2];
+                pos[3] = parsedPos[3];
+                pos[4] = parsedPos[4];
+                pos[5] = parsedPos[5];
+
+                //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
+
+                await xrc.MoveToPosition(pos, speed);
+            });
+
             client.OnConnected += async () =>
             {
                 // Emit identification eevent to the server
                 await client.EmitAsync("i-am-robot");
-
+                await Task.Delay(200);
+                if (xrc != null) client.EmitAsync("fromRobot-status", xrc.GetCopyOfRobotStatus());
                 //// Emit test event, send object.
                 //await client.EmitAsync("test", new { code = 200 });
             };
@@ -86,7 +113,7 @@ namespace MotomanRS2TCP
 
         private void Client_OnClosed(ServerCloseReason serverCloseReason)
         {
-            //Console.WriteLine("Disconnected from server, " + serverCloseReason.ToString());
+            Console.WriteLine("Disconnected from server, " + serverCloseReason.ToString());
             isConnecting = false;
             isConnected = false;
             if (!isDisconnectRequested && serverCloseReason == ServerCloseReason.ClosedByServer) SetTimer();
@@ -109,7 +136,7 @@ namespace MotomanRS2TCP
         {
             if (!isConnected || client == null || xrc == null) return;
 
-            client.EmitAsync("status", xrc.GetCopyOfRobotStatus());
+            client.EmitAsync("fromRobot-status", xrc.GetCopyOfRobotStatus());
 
         }
 
@@ -117,7 +144,7 @@ namespace MotomanRS2TCP
         {
             if (!isConnected || client == null) return;
 
-            client.EmitAsync("position", currentPosition);
+            client.EmitAsync("fromRobot-position", currentPosition);
 
         }
     }

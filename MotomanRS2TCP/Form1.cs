@@ -28,8 +28,7 @@ namespace MotomanRS2TCP
 
             speedSP = 200;
             numericUpDown1.Value = speedSP;
-
-            StartApp();
+            portNumber.Value = 3;
         }
 
 
@@ -54,7 +53,8 @@ namespace MotomanRS2TCP
         {
             try
             {
-                xrc = new MotomanConnection();
+                
+                xrc = new MotomanConnection((short)portNumber.Value);
                 ioClient = new NodeSocketIO(xrc);
 
                 xrc.StatusChanged += new EventHandler(StatusChanged);
@@ -380,6 +380,12 @@ namespace MotomanRS2TCP
 
             //posSP.X = posSP.X - 10;
             //UpdateUiSetpointPosition();
+        }
+
+        private void btnConnect_Click(object sender, EventArgs e)
+        {
+            btnConnect.Enabled = false;
+            StartApp();
         }
     }
 }

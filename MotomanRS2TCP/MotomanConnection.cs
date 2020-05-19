@@ -30,6 +30,8 @@ namespace MotomanRS2TCP
         private long m_previousStatus_ms;
         private long m_commsLossTimeout = 2000;
         private int m_XRCPollInterval = 100;
+        private short portNumber = 0;
+
         //private bool isSettingIdle = false;
         //private readonly CRobPosVar position99 = new CRobPosVar();
 
@@ -59,7 +61,9 @@ namespace MotomanRS2TCP
 
         #region constructor
 
-        public MotomanConnection() { }
+        public MotomanConnection(short portNumber) {
+            this.portNumber = portNumber;
+        }
 
         static MotomanConnection()
         {
@@ -89,7 +93,7 @@ namespace MotomanRS2TCP
                 //set IP Address
                 // ret = CMotocom.BscSetEServer(m_Handle, m_IPAddress);
 
-                ret = CMotocom.BscSetCom(m_Handle, 3, 9600, 2, 8, 0); //9600, Even parity, 8 data bits, 1 stop bit
+                ret = CMotocom.BscSetCom(m_Handle, portNumber, 9600, 2, 8, 0); //9600, Even parity, 8 data bits, 1 stop bit
 
                 //if (ret!=1) throw new Exception("Could not set IP address !");
                 if (ret != 1)
