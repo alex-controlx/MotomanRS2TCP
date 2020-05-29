@@ -16,13 +16,38 @@ namespace MotomanRS2TCP
         private bool isConnected = false;
         private bool isConnecting = false;
         private System.Timers.Timer aTimer;
-        private readonly MotomanConnection xrc;
+        private MotomanConnection xrc;
         private SocketIO client;
         private bool isDisconnectRequested = false;
 
-        public NodeSocketIO(MotomanConnection xrc)
+        public NodeSocketIO() {}
+
+        public void SetXrc(MotomanConnection xrc)
         {
             this.xrc = xrc;
+
+            xrc.StatusChanged += new System.EventHandler(
+                (object sender, EventArgs e) => { if (xrc != null) SendStatus(xrc.GetCopyOfRobotStatus()); }
+            );
+            xrc.DispatchCurrentPosition += new System.EventHandler(
+                (object sender, EventArgs e) => { if (xrc != null) SendPosition(xrc.GetCurrentPositionCached()); }
+            );
+            xrc.ConnectionError += new System.EventHandler(
+                (object sender, EventArgs e) => { if (xrc != null) EmitWrapperError(xrc.CurrentError); }
+            );
+            //xrc.EventStatus += new System.EventHandler(
+            //    (object sender, EventArgs e) => { if (xrc != null) EmitWrapperStatus(xrc.CurrentEvent); }
+            //);
+            xrc.ConnectionStatus += new System.EventHandler(
+                (object sender, EventArgs e) => { if (xrc != null) EmitWrapperStatus(xrc.CurrentConnection); }
+            );
+            
+            
+        }
+
+        public void DisposeXrc()
+        {
+            this.xrc = null;
         }
 
         public async void Connect()
@@ -40,6 +65,13 @@ namespace MotomanRS2TCP
             // Listen server events
             client.On("toRobot-moveToLoadingHome", async res =>
             {
+
+                if (xrc == null)
+                {
+                    EmitWrapperError("XRC is undefined");
+                    return;
+                }
+
                 await xrc.MoveToHome1();
                 //Console.WriteLine(res.Text);
                 // Next, you might parse the data in this way.
@@ -54,6 +86,12 @@ namespace MotomanRS2TCP
 
             client.On("toRobot-moveToPosition", async res =>
             {
+
+                if (xrc == null)
+                {
+                    EmitWrapperError("XRC is undefined");
+                    return;
+                }
 
                 Console.WriteLine(res.Text);
                 // Next, you might parse the data in this way.
@@ -73,7 +111,7 @@ namespace MotomanRS2TCP
 
                 //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
 
-                await xrc.MoveToPosition(pos, speed);
+                //await xrc.MoveIncrementally(pos, speed);
             });
 
             client.OnConnected += async () =>
@@ -132,20 +170,34 @@ namespace MotomanRS2TCP
 
 
 
-        public void SendStatus()
+        private void SendStatus(CRobotStatus status)
         {
-            if (!isConnected || client == null || xrc == null) return;
+            if (!isConnected || client == null ) return;
 
-            client.EmitAsync("fromRobot-status", xrc.GetCopyOfRobotStatus());
+            client.EmitAsync("fromRobot-status", status);
 
         }
 
-        public void SendPosition(double[] currentPosition)
+        private void SendPosition(double[] currentPosition)
         {
             if (!isConnected || client == null) return;
 
             client.EmitAsync("fromRobot-position", currentPosition);
 
+        }
+
+        private void EmitWrapperError(string message)
+        {
+            if (!isConnected || client == null) return;
+
+            client.EmitAsync("fromRobot-wrapperError", message);
+        }
+
+        private void EmitWrapperStatus(string message)
+        {
+            if (!isConnected || client == null) return;
+
+            client.EmitAsync("fromRobot-wrapperStatus", message);
         }
     }
 }

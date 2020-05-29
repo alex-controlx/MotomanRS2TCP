@@ -39,8 +39,14 @@ namespace MotomanRS2TCP
         // working home position X = 1345; Y = 0; Z = 980; Rx = 90;  Ry = 0;   Rz = 90; Formcode = 0; ToolNo = 0;
         // working home position pulses: S = 0, L = 0, U = 0, R = 2697, B = 0, T = 35532 
         //private readonly double[] homePosPulse = { 0, 0, 0, 2697, 0, 35532, 0, 0, 0, 0, 0, 0};
-        private readonly double[] homePosPulse = { -4, -49, -579, 2568, 201, 35594, 0, 0, 0, 0, 0, 0};
-        private readonly double[] homePosXYZ = { 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01, 0, 0, 0, 0, 0, 0};
+        //private readonly double[] homePosPulse = { -4, -49, -579, 2568, 201, 35594, 0, 0, 0, 0, 0, 0};
+        private readonly double[] homePosPulse = { 0, 0, 0, 0, -71582, 0, 0, 0, 0, 0, 0, 0};
+        
+        //private readonly double[] homePosXYZ = { 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01, 0, 0, 0, 0, 0, 0};
+        private readonly double[] homePosXYZ = { 1170.025, 0, 805, 180, -0.01, 0, 0, 0, 0, 0, 0, 0};
+
+        // new loading home 1170.025,0,805,180,-0.01,0 (on 27/05/2020)
+        // in pulse 41 -2073 -3093 13 -71346 36784
 
         //private readonly CRobPosVar homePos = new CRobPosVar(FrameType.Robot, 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01, 0, 0);
 
@@ -56,6 +62,7 @@ namespace MotomanRS2TCP
         public event EventHandler ConnectionStatus;
         public event EventHandler ConnectionError;
         public event EventHandler EventStatus;
+        public event EventHandler MovingToPosition;
 
         #endregion
 
@@ -223,6 +230,7 @@ namespace MotomanRS2TCP
         private void SetError(string message)
         {
             m_Error = message;
+            Console.WriteLine("ERROR: " + message);
             ConnectionError?.Invoke(this, null);
         }
 
@@ -379,43 +387,86 @@ namespace MotomanRS2TCP
             await SetEvent(EnumEvent.Idle);
         }
 
-        public async Task MoveToPosition(double[] posVar, double speedSP)
+        public async Task MoveIncrementally(IMove iMove, double speedSP)
         {
-            if (m_commsError || posVar == null) return;
+            if (m_commsError || iMove == null) return;
+
+            // bkFrd lftRght upDown
+            // Up = right, down = left, left = frd, right = back
             
             await TaskEx.WaitUntil(isIdle);
             SetEvent("MoveToPosition");
 
-            if (isAtHome() || isIncrementalMove(posVar))
-            {
-                short ret = 0;
-                StringBuilder vType = new StringBuilder("V"); // VR;
-                double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
-                StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
-                short toolNo = 0;
 
-                if (IsReadyToOperate())
+            //if (isAtHome())
+            //{
+                if (isSafeToMove(iMove))
                 {
-                    ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref posVar[0]);
-                    if (ret != 0) SetError("Error MoveToPosition:BscImov");
-                }
-            } else SetError("Error robot is not at home position.");
+                    short ret = 0;
+                    StringBuilder vType = new StringBuilder("V"); // VR;
+                    double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
+                    StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
+                    short toolNo = 0;
+                    double[] iCoordinates = iMove.ToArray();
+
+                    
+
+                    Console.WriteLine("Would move to " + iCoordinates[0]);
+
+                    //if (IsReadyToOperate())
+                    //{
+                    //    ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref iCoordinates[0]);
+                    //    if (ret != 0) SetError("Error MoveToPosition:BscImov");
+                    //}
+                } else SetError("Not safe to move to " + iMove.ToString());
+
+            //} else SetError("Error robot is not at home position.");
 
 
             await SetEvent(EnumEvent.Idle);
         }
 
-
-        private bool isIncrementalMove(double[] posVar)
+        private bool isSafeToMove(IMove iMove)
         {
-            double diff = 0;
-            for (int i = 0; i < 6; i++)
-            {
-                if (posVar[i] != 0 && diff != 0) return false;
-                if (Math.Abs(posVar[i]) > diff) diff = Math.Abs(posVar[i]);
-            }
-            return (diff <= 200);
+            // Internal radius of the safe donut
+            double Rin = 900;  // mm
+            // External radius of the safe donut
+            double Rex = 1700; // mm
+
+            double currentBackForward = currentPosition[0];  // backForward
+            double currentY = currentPosition[1];  // leftRight
+            double currentZ = currentPosition[2];  // upDown
+            double currentAcwCw = currentPosition[5];  // acwCw
+
+            if (currentZ + iMove.upDown < -1100 || currentZ + iMove.upDown > 975) return false;
+            if (currentAcwCw + iMove.acwCw < -89.9 || currentAcwCw + iMove.acwCw > 89.9) return false;
+
+            double moveToX = currentBackForward + iMove.backForward;
+            double moveToY = currentY + iMove.leftRight;
+
+            double loc = moveToX * moveToX + moveToY * moveToY;
+
+            // console.log(Rin * Rin, loc, Rex * Rex);
+            bool outSmall = loc >= Rin * Rin;
+            bool withinBig = loc <= Rex * Rex;
+
+            Console.WriteLine("Out of small " + outSmall + ", within big " + withinBig);
+
+            bool isSafe = (outSmall && withinBig);
+            if (!isSafe) SetError("Cannot move to X =" + moveToX + ", Y=" + moveToY + ", Z=" + currentZ + iMove.upDown);
+            return isSafe;
         }
+
+        //private bool isIncrementalMove(double[] posVar)
+        //{
+        //    double diff = 0;
+        //    for (int i = 0; i < 6; i++)
+        //    {
+        //        if (posVar[i] != 0 && diff != 0) return false;
+        //        if (Math.Abs(posVar[i]) > diff) diff = Math.Abs(posVar[i]);
+        //    }
+        //    return (diff <= 200);
+        //}
 
         // this restricts to only one coordinate change and only within 200mm
         private bool isAtHome()

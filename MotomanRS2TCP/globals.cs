@@ -94,4 +94,28 @@ namespace MotomanRS2TCP
                 throw new TimeoutException();
         }
     }
+
+
+    public class IMove
+    {
+        public IMove(double backForward, double leftRight, double upDown, double acwCw)
+        {
+            this.backForward = backForward;
+            this.leftRight = leftRight;
+            this.upDown = upDown;
+            this.acwCw = acwCw;
+        }
+
+        public double[] ToArray()
+        {
+            // current button: X:-bk+Frd, Y:-lft+Rght, Z:-up+Down
+            // Array is X, Y, Z, Rx, Ry, Rz
+            return new double[] { backForward, leftRight, upDown, 0, 0, acwCw, 0, 0, 0, 0, 0, 0 };
+        }
+
+        public double backForward { get; private set; }
+        public double leftRight { get; private set; }
+        public double upDown { get; private set; }
+        public double acwCw { get; private set; }
+    }
 }

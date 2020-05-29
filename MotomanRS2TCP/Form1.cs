@@ -29,6 +29,15 @@ namespace MotomanRS2TCP
             speedSP = 200;
             numericUpDown1.Value = speedSP;
             portNumber.Value = 3;
+
+
+            ioClient = new NodeSocketIO();
+            WriteLine("Starting Socket IO");
+            ioClient.Connect();
+
+            btnConnect.Enabled = false;
+            StartApp();
+            button7.Enabled = true;
         }
 
 
@@ -55,13 +64,16 @@ namespace MotomanRS2TCP
             {
                 
                 xrc = new MotomanConnection((short)portNumber.Value);
-                ioClient = new NodeSocketIO(xrc);
+                ioClient.SetXrc(xrc);
 
                 xrc.StatusChanged += new EventHandler(StatusChanged);
                 xrc.ConnectionStatus += new EventHandler(rc1_connectionStatus);
                 xrc.EventStatus += new EventHandler(rc1_eventStatus);
                 xrc.ConnectionError += new EventHandler(rc1_errorStatus);
                 xrc.DispatchCurrentPosition += new EventHandler(
+                    (object sender, EventArgs e) => { UpdateUiCurrentPosition(); }
+                );
+                xrc.MovingToPosition += new EventHandler(
                     (object sender, EventArgs e) => { UpdateUiCurrentPosition(); }
                 );
 
@@ -71,8 +83,7 @@ namespace MotomanRS2TCP
                 WriteLine("XRC Starting connection");
                 xrc.Connect();
 
-                WriteLine("Starting Socket IO");
-                ioClient.Connect();
+
 
                 UpdateUiSetpointPosition();
             } catch (Exception ex)
@@ -110,7 +121,6 @@ namespace MotomanRS2TCP
         {
             if (xrc == null) return;
             
-            ioClient.SendStatus();
             WriteLine("    XRC Status: " + xrc.RobotStatusJson);
 
             CRobotStatus status = xrc.GetCopyOfRobotStatus();
@@ -187,14 +197,13 @@ namespace MotomanRS2TCP
         {
             if (xrc == null) return;
 
-            var currentPosition = xrc.GetCurrentPositionCached();
-            ioClient.SendPosition(currentPosition);
             if (label6.InvokeRequired)
             {
                 label6.Invoke(new Label6Delegate(UpdateUiCurrentPosition));
             }
             else
             {
+                var currentPosition = xrc.GetCurrentPositionCached();
                 label6.Text = "X:" + currentPosition[0].ToString() + " " +
                     "Y:" + currentPosition[1].ToString() + " " +
                     "Z:" + currentPosition[2].ToString() + " " +
@@ -264,128 +273,105 @@ namespace MotomanRS2TCP
 
         private async void button2_Click(object sender, EventArgs e)
         {
-            button2.Enabled = false;
-            isCycling = !isCycling;
-            if (isCycling) button2.Text = "Stop Cycle";
-            else button2.Text = "Start Cycle";
+            //button2.Enabled = false;
+            //isCycling = !isCycling;
+            //if (isCycling) button2.Text = "Stop Cycle";
+            //else button2.Text = "Start Cycle";
 
-            if (!isCycling) await xrc.CancelOperation();
+            //if (!isCycling) await xrc.CancelOperation();
 
-            button2.Enabled = true;
-            while (isCycling)
-            {
-                double[] posA = { -600, -1500, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-                await xrc.MoveToPosition(posA, (double)speedSP);
-                await TaskEx.WaitUntil(isOperating);
-                await TaskEx.WaitUntil(isNotOperating);
-                await Task.Delay(200);
+            //button2.Enabled = true;
+            //while (isCycling)
+            //{
+            //    double[] posA = { -600, -1500, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            //    await xrc.MoveIncrementally(posA, (double)speedSP);
+            //    await TaskEx.WaitUntil(isOperating);
+            //    await TaskEx.WaitUntil(isNotOperating);
+            //    await Task.Delay(200);
 
-                await xrc.MoveToHome1();
-                await TaskEx.WaitUntil(isOperating);
-                await TaskEx.WaitUntil(isNotOperating);
-                await Task.Delay(200);
+            //    await xrc.MoveToHome1();
+            //    await TaskEx.WaitUntil(isOperating);
+            //    await TaskEx.WaitUntil(isNotOperating);
+            //    await Task.Delay(200);
 
-                if (!isCycling) return;
+            //    if (!isCycling) return;
 
-                double[] posB = { 800, -1600, -400, 0, 85, 0, 0, 0, 0, 0, 0, 0 };
-                await xrc.MoveToPosition(posB, (double)speedSP);
-                await TaskEx.WaitUntil(isOperating);
-                await TaskEx.WaitUntil(isNotOperating);
-                await Task.Delay(200);
+            //    double[] posB = { 800, -1600, -400, 0, 85, 0, 0, 0, 0, 0, 0, 0 };
+            //    await xrc.MoveIncrementally(posB, (double)speedSP);
+            //    await TaskEx.WaitUntil(isOperating);
+            //    await TaskEx.WaitUntil(isNotOperating);
+            //    await Task.Delay(200);
 
-                await xrc.MoveToHome1();
-                await TaskEx.WaitUntil(isOperating);
-                await TaskEx.WaitUntil(isNotOperating);
-                await Task.Delay(200);
-            }
+            //    await xrc.MoveToHome1();
+            //    await TaskEx.WaitUntil(isOperating);
+            //    await TaskEx.WaitUntil(isNotOperating);
+            //    await Task.Delay(200);
+            //}
 
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
             // UP
-            ShiftRobit(200, 0, 0, 0);
+            ShiftRobit(new IMove(0, 0, -200, 0));
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
             // DOWN
-            ShiftRobit(0, 200, 0, 0);
+            ShiftRobit(new IMove(0, 0, 200, 0));
         }
 
         private void button5_Click(object sender, EventArgs e)
         {
             // RIGHT
-            ShiftRobit(0, 0, 200, 0);
+            ShiftRobit(new IMove(0, 200, 0, 0));
         }
 
         private void button6_Click(object sender, EventArgs e)
         {
             // LEFT
-            ShiftRobit(0, 0, 0, 200);
+            ShiftRobit(new IMove(0, -200, 0, 0));
         }
 
-        private void ShiftRobit(double up, double down, double right,  double left)
+        private void ShiftRobit(IMove iMove)
         {
             if (xrc == null) return;
-            double[] newPos = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            newPos[0] = newPos[0] + left - right;
-            newPos[1] = newPos[1] + up - down;
-            //newPos[2] = newPos[2] + fwd - bck;
-
-            //var currentPosition = xrc.GetCurrentPositionCached();
-            //CRobPosVar newPos = new CRobPosVar();
-            //newPos.Frame = FrameType.Robot;
-            //newPos.X = currentPosition[0];
-            //newPos.Y = currentPosition[1] + right - left;
-            //newPos.Z = currentPosition[2] + up - down;
-            //newPos.Rx = currentPosition[3];
-            //newPos.Ry = currentPosition[4];
-            //newPos.Rz = currentPosition[5];
-            //newPos.Formcode = Convert.ToInt16(currentPosition[13]);
-            //newPos.ToolNo = Convert.ToInt16(currentPosition[14]);
-            xrc.MoveToPosition(newPos, (double)speedSP);
+            xrc.MoveIncrementally(iMove, (double)speedSP);
         }
 
         private async void btnUp_Click(object sender, EventArgs e)
         {
             // Position A
-            //  1453.801, -787.187, -258.498, 88.66, -0.03, 87.77
-
             if (xrc == null) return;
 
-            // 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01 => MAX X: (900, 1650) Y: (-735, 735) Z: (-1100)
-            //  | +-735  |  -2000,0  |  -445,305   |  0  |  +-89    |  0
-            //  |  -R+L  |  -Dn  +Up |  -Bck +Fwd  |  0  | -ACW+CW  |  0
-            double[] posA = { -600, -1500, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            await xrc.MoveToPosition(posA, (double)speedSP);
-
-            //posSP.X = posSP.X + 10;
-            //UpdateUiSetpointPosition();
+            IMove iMove = new IMove(200, 600, 1500, 0);
+            await xrc.MoveIncrementally(iMove, (double)speedSP);
         }
 
         private async void btnDown_Click(object sender, EventArgs e)
         {
             // Position B
-            //  1247.378, 668.79, -407.418, 88.67, -0.05, -178.18
             if (xrc == null) return;
-            //CRobPosVar posB = new CRobPosVar(FrameType.Robot, 1247.378, 668.79, -407.418, 90.01, 0.00, -175, 0, 0);
-            //xrc.MoveByJob(false, speedSP, posB);
 
-            // 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01 => MAX X: (900, 1650) Y: (-735, 735) Z: (-1100)
-            //  | +-735  |  -2000,0  |  -445,305   |  0  |  +-89    |  0
-            //  |  -R+L  |  -Dn  +Up |  -Bck +Fwd  |  0  | -CW+ACW  |  0
-            double[] posB = { 800, -1500, -400, 0, 85, 0, 0, 0, 0, 0, 0, 0 };
-            await xrc.MoveToPosition(posB, (double)speedSP);
-
-            //posSP.X = posSP.X - 10;
-            //UpdateUiSetpointPosition();
+            IMove iMove = new IMove(-400, -600, 1500, -85);
+            await xrc.MoveIncrementally(iMove, (double)speedSP);
         }
 
         private void btnConnect_Click(object sender, EventArgs e)
         {
             btnConnect.Enabled = false;
             StartApp();
+            button7.Enabled = true;
+        }
+
+        private async void button7_Click(object sender, EventArgs e)
+        {
+            if (xrc == null) return;
+            button7.Enabled = false;
+            await xrc.Disconnect();
+            xrc = null;
+            btnConnect.Enabled = true;
         }
     }
 }
