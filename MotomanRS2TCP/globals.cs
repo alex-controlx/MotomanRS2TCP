@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace MotomanRS2TCP
@@ -113,9 +111,9 @@ namespace MotomanRS2TCP
             return new double[] { backForward, leftRight, upDown, 0, 0, acwCw, 0, 0, 0, 0, 0, 0 };
         }
 
-        public double backForward { get; private set; }
-        public double leftRight { get; private set; }
-        public double upDown { get; private set; }
-        public double acwCw { get; private set; }
+        public double backForward { get; set; }
+        public double leftRight { get; set; }
+        public double upDown { get; set; }
+        public double acwCw { get; set; }
     }
 }

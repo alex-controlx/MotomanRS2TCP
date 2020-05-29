@@ -70,6 +70,7 @@ namespace MotomanRS2TCP
 
         public MotomanConnection(short portNumber) {
             this.portNumber = portNumber;
+            movingTo = new double[] {0, 0, 0, 0, 0, 0};
         }
 
         static MotomanConnection()
@@ -257,14 +258,6 @@ namespace MotomanRS2TCP
 
         public double[] GetCurrentPositionCached()
         {
-            // posSP.X = currentPosition[0];
-            // posSP.Y = currentPosition[1];
-            // posSP.Z = currentPosition[2];
-            // posSP.Rx = currentPosition[3];
-            // posSP.Ry = currentPosition[4];
-            // posSP.Rz = currentPosition[5];
-            // posSP.Formcode = Convert.ToInt16(currentPosition[13]);
-            // posSP.ToolNo = Convert.ToInt16(currentPosition[14]);
             return (double[])currentPosition.Clone();
         }
 
@@ -374,12 +367,21 @@ namespace MotomanRS2TCP
             await TaskEx.WaitUntil(isIdle);
             SetEvent("MoveToHome1");
 
+            await Task.Delay(50);
+
             short ret = 0;
             double speed = (speedSP > 30) ? 30 : ((speedSP < 0) ? 0 : speedSP);
             short toolNo = 0;
 
             if (IsReadyToOperate())
             {
+                movingTo[0] = homePosXYZ[0];
+                movingTo[1] = homePosXYZ[1];
+                movingTo[2] = homePosXYZ[2];
+                movingTo[3] = homePosXYZ[3];
+                movingTo[4] = homePosXYZ[4];
+                movingTo[5] = homePosXYZ[5];
+                MovingToPosition?.Invoke(this, null);
                 ret = CMotocom.BscPMovj(m_Handle, speed, toolNo, ref homePosPulse[0]);
                 if (ret != 0) SetError("Error MoveToHome1:BscPMovj");
             }
@@ -390,38 +392,28 @@ namespace MotomanRS2TCP
         public async Task MoveIncrementally(IMove iMove, double speedSP)
         {
             if (m_commsError || iMove == null) return;
-
-            // bkFrd lftRght upDown
-            // Up = right, down = left, left = frd, right = back
             
             await TaskEx.WaitUntil(isIdle);
             SetEvent("MoveToPosition");
 
+            await Task.Delay(50);
 
-            //if (isAtHome())
-            //{
-                if (isSafeToMove(iMove))
+            if (isSafeToMove(iMove))
+            {
+                short ret = 0;
+                StringBuilder vType = new StringBuilder("V"); // VR;
+                double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
+                StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
+                short toolNo = 0;
+                double[] iCoordinates = iMove.ToArray();
+
+                if (IsReadyToOperate())
                 {
-                    short ret = 0;
-                    StringBuilder vType = new StringBuilder("V"); // VR;
-                    double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
-                    StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
-                    short toolNo = 0;
-                    double[] iCoordinates = iMove.ToArray();
-
-                    
-
-                    Console.WriteLine("Would move to " + iCoordinates[0]);
-
-                    //if (IsReadyToOperate())
-                    //{
-                    //    ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref iCoordinates[0]);
-                    //    if (ret != 0) SetError("Error MoveToPosition:BscImov");
-                    //}
-                } else SetError("Not safe to move to " + iMove.ToString());
-
-            //} else SetError("Error robot is not at home position.");
-
+                    MovingToPosition?.Invoke(this, null);
+                    ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref iCoordinates[0]);
+                    if (ret != 0) SetError("Error MoveToPosition:BscImov");
+                }
+            } else SetError("Not safe to move to X=" + movingTo[0] + ", Y=" + movingTo[1] + ", Z=" + movingTo[2] + ", Rz=" + movingTo[5]);
 
             await SetEvent(EnumEvent.Idle);
         }
@@ -438,23 +430,24 @@ namespace MotomanRS2TCP
             double currentZ = currentPosition[2];  // upDown
             double currentAcwCw = currentPosition[5];  // acwCw
 
-            if (currentZ + iMove.upDown < -1100 || currentZ + iMove.upDown > 975) return false;
-            if (currentAcwCw + iMove.acwCw < -89.9 || currentAcwCw + iMove.acwCw > 89.9) return false;
+            double moveToX = movingTo[0] = currentBackForward + iMove.backForward;
+            double moveToY = movingTo[1] = currentY - iMove.leftRight;
+            double moveToZ = movingTo[2] = currentZ - iMove.upDown;
+            double rotateZ = movingTo[5] = currentAcwCw - iMove.acwCw;
 
-            double moveToX = currentBackForward + iMove.backForward;
-            double moveToY = currentY + iMove.leftRight;
+            //Console.WriteLine(moveToX + ", " + moveToY + ", " + moveToZ + ", " + rotateZ);
+
+            if (moveToZ < -1100 || moveToZ > 975) return false;
+            if (rotateZ < -89.9 || rotateZ > 89.9) return false;
 
             double loc = moveToX * moveToX + moveToY * moveToY;
-
-            // console.log(Rin * Rin, loc, Rex * Rex);
             bool outSmall = loc >= Rin * Rin;
             bool withinBig = loc <= Rex * Rex;
 
-            Console.WriteLine("Out of small " + outSmall + ", within big " + withinBig);
+            if (!outSmall) SetError(Math.Round(moveToX, 2) + "," + Math.Round(moveToY, 2) + " is too close to base.");
+            if (!withinBig) SetError(Math.Round(moveToX, 2) + "," + Math.Round(moveToY, 2) + " is out of reach.");
 
-            bool isSafe = (outSmall && withinBig);
-            if (!isSafe) SetError("Cannot move to X =" + moveToX + ", Y=" + moveToY + ", Z=" + currentZ + iMove.upDown);
-            return isSafe;
+            return outSmall && withinBig;
         }
 
         //private bool isIncrementalMove(double[] posVar)
@@ -686,6 +679,8 @@ namespace MotomanRS2TCP
                 return posCopy;
             }
         }
+
+        public double[] movingTo { get; internal set; }
 
         #endregion
     }

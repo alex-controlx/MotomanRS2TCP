@@ -32,18 +32,12 @@
             this.btnUp = new System.Windows.Forms.Button();
             this.btnDown = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
             this.label9 = new System.Windows.Forms.Label();
-            this.btnCurrentPos2SP = new System.Windows.Forms.Button();
             this.btnHomePos = new System.Windows.Forms.Button();
-            this.btnGetPosVar = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
             this.label10 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
@@ -54,6 +48,8 @@
             this.portNumber = new System.Windows.Forms.NumericUpDown();
             this.btnConnect = new System.Windows.Forms.Button();
             this.button7 = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
+            this.button8 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.portNumber)).BeginInit();
             this.SuspendLayout();
@@ -63,7 +59,7 @@
             this.listBox1.FormattingEnabled = true;
             this.listBox1.HorizontalScrollbar = true;
             this.listBox1.Location = new System.Drawing.Point(9, 136);
-            this.listBox1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.listBox1.Margin = new System.Windows.Forms.Padding(2);
             this.listBox1.Name = "listBox1";
             this.listBox1.Size = new System.Drawing.Size(727, 186);
             this.listBox1.TabIndex = 1;
@@ -71,7 +67,7 @@
             // btnUp
             // 
             this.btnUp.Location = new System.Drawing.Point(11, 12);
-            this.btnUp.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.btnUp.Margin = new System.Windows.Forms.Padding(2);
             this.btnUp.Name = "btnUp";
             this.btnUp.Size = new System.Drawing.Size(76, 19);
             this.btnUp.TabIndex = 2;
@@ -82,7 +78,7 @@
             // btnDown
             // 
             this.btnDown.Location = new System.Drawing.Point(11, 36);
-            this.btnDown.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.btnDown.Margin = new System.Windows.Forms.Padding(2);
             this.btnDown.Name = "btnDown";
             this.btnDown.Size = new System.Drawing.Size(76, 19);
             this.btnDown.TabIndex = 3;
@@ -93,27 +89,17 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(142, 12);
+            this.label1.Location = new System.Drawing.Point(152, 12);
             this.label1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(86, 13);
+            this.label1.Size = new System.Drawing.Size(54, 13);
             this.label1.TabIndex = 7;
-            this.label1.Text = "Position Setpoint";
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(142, 44);
-            this.label2.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(85, 13);
-            this.label2.TabIndex = 8;
-            this.label2.Text = "Position Variable";
+            this.label1.Text = "Moving to";
             // 
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(142, 72);
+            this.label3.Location = new System.Drawing.Point(152, 39);
             this.label3.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(81, 13);
@@ -123,42 +109,22 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(314, 12);
+            this.label4.Location = new System.Drawing.Point(261, 12);
             this.label4.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(35, 13);
             this.label4.TabIndex = 10;
             this.label4.Text = "label4";
             // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(314, 44);
-            this.label5.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(35, 13);
-            this.label5.TabIndex = 11;
-            this.label5.Text = "label5";
-            // 
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(314, 72);
+            this.label6.Location = new System.Drawing.Point(261, 39);
             this.label6.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(35, 13);
             this.label6.TabIndex = 12;
             this.label6.Text = "label6";
-            // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(93, 12);
-            this.label7.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(35, 13);
-            this.label7.TabIndex = 13;
-            this.label7.Text = "label7";
             // 
             // label8
             // 
@@ -180,54 +146,21 @@
             this.label9.TabIndex = 15;
             this.label9.Text = "Idle";
             // 
-            // btnCurrentPos2SP
-            // 
-            this.btnCurrentPos2SP.Location = new System.Drawing.Point(232, 10);
-            this.btnCurrentPos2SP.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.btnCurrentPos2SP.Name = "btnCurrentPos2SP";
-            this.btnCurrentPos2SP.Size = new System.Drawing.Size(70, 19);
-            this.btnCurrentPos2SP.TabIndex = 16;
-            this.btnCurrentPos2SP.Text = "SetCurrent";
-            this.btnCurrentPos2SP.UseVisualStyleBackColor = true;
-            this.btnCurrentPos2SP.Click += new System.EventHandler(this.btnCurrentPos2SP_Click);
-            // 
             // btnHomePos
             // 
-            this.btnHomePos.Location = new System.Drawing.Point(144, 107);
-            this.btnHomePos.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.btnHomePos.Location = new System.Drawing.Point(575, 9);
+            this.btnHomePos.Margin = new System.Windows.Forms.Padding(2);
             this.btnHomePos.Name = "btnHomePos";
-            this.btnHomePos.Size = new System.Drawing.Size(104, 19);
+            this.btnHomePos.Size = new System.Drawing.Size(155, 19);
             this.btnHomePos.TabIndex = 17;
             this.btnHomePos.Text = "Move to Home";
             this.btnHomePos.UseVisualStyleBackColor = true;
             this.btnHomePos.Click += new System.EventHandler(this.btnHomePos_Click);
             // 
-            // btnGetPosVar
-            // 
-            this.btnGetPosVar.Location = new System.Drawing.Point(267, 41);
-            this.btnGetPosVar.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.btnGetPosVar.Name = "btnGetPosVar";
-            this.btnGetPosVar.Size = new System.Drawing.Size(34, 19);
-            this.btnGetPosVar.TabIndex = 19;
-            this.btnGetPosVar.Text = "Get";
-            this.btnGetPosVar.UseVisualStyleBackColor = true;
-            this.btnGetPosVar.Click += new System.EventHandler(this.btnGetPosVar_Click);
-            // 
-            // button1
-            // 
-            this.button1.Location = new System.Drawing.Point(649, 36);
-            this.button1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(86, 19);
-            this.button1.TabIndex = 20;
-            this.button1.Text = "MoveJ To SP";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
-            // 
             // numericUpDown1
             // 
             this.numericUpDown1.Location = new System.Drawing.Point(11, 82);
-            this.numericUpDown1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.numericUpDown1.Margin = new System.Windows.Forms.Padding(2);
             this.numericUpDown1.Maximum = new decimal(new int[] {
             1000,
             0,
@@ -250,8 +183,8 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(309, 107);
-            this.button2.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.button2.Location = new System.Drawing.Point(626, 109);
+            this.button2.Margin = new System.Windows.Forms.Padding(2);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(104, 19);
             this.button2.TabIndex = 23;
@@ -261,8 +194,8 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(599, 107);
-            this.button3.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.button3.Location = new System.Drawing.Point(575, 62);
+            this.button3.Margin = new System.Windows.Forms.Padding(2);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(49, 19);
             this.button3.TabIndex = 24;
@@ -272,8 +205,8 @@
             // 
             // button4
             // 
-            this.button4.Location = new System.Drawing.Point(599, 84);
-            this.button4.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.button4.Location = new System.Drawing.Point(575, 39);
+            this.button4.Margin = new System.Windows.Forms.Padding(2);
             this.button4.Name = "button4";
             this.button4.Size = new System.Drawing.Size(49, 19);
             this.button4.TabIndex = 25;
@@ -283,8 +216,8 @@
             // 
             // button5
             // 
-            this.button5.Location = new System.Drawing.Point(652, 107);
-            this.button5.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.button5.Location = new System.Drawing.Point(628, 62);
+            this.button5.Margin = new System.Windows.Forms.Padding(2);
             this.button5.Name = "button5";
             this.button5.Size = new System.Drawing.Size(49, 19);
             this.button5.TabIndex = 26;
@@ -294,8 +227,8 @@
             // 
             // button6
             // 
-            this.button6.Location = new System.Drawing.Point(652, 84);
-            this.button6.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.button6.Location = new System.Drawing.Point(628, 39);
+            this.button6.Margin = new System.Windows.Forms.Padding(2);
             this.button6.Name = "button6";
             this.button6.Size = new System.Drawing.Size(49, 19);
             this.button6.TabIndex = 27;
@@ -306,7 +239,7 @@
             // portNumber
             // 
             this.portNumber.Location = new System.Drawing.Point(9, 329);
-            this.portNumber.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.portNumber.Margin = new System.Windows.Forms.Padding(2);
             this.portNumber.Maximum = new decimal(new int[] {
             1000,
             0,
@@ -319,7 +252,7 @@
             // btnConnect
             // 
             this.btnConnect.Location = new System.Drawing.Point(95, 328);
-            this.btnConnect.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.btnConnect.Margin = new System.Windows.Forms.Padding(2);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(76, 19);
             this.btnConnect.TabIndex = 29;
@@ -338,11 +271,35 @@
             this.button7.UseVisualStyleBackColor = true;
             this.button7.Click += new System.EventHandler(this.button7_Click);
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(681, 39);
+            this.button1.Margin = new System.Windows.Forms.Padding(2);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(49, 19);
+            this.button1.TabIndex = 32;
+            this.button1.Text = "Back";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
+            // button8
+            // 
+            this.button8.Location = new System.Drawing.Point(681, 62);
+            this.button8.Margin = new System.Windows.Forms.Padding(2);
+            this.button8.Name = "button8";
+            this.button8.Size = new System.Drawing.Size(49, 19);
+            this.button8.TabIndex = 31;
+            this.button8.Text = "Fwd";
+            this.button8.UseVisualStyleBackColor = true;
+            this.button8.Click += new System.EventHandler(this.button8_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(744, 357);
+            this.Controls.Add(this.button1);
+            this.Controls.Add(this.button8);
             this.Controls.Add(this.button7);
             this.Controls.Add(this.btnConnect);
             this.Controls.Add(this.portNumber);
@@ -353,23 +310,17 @@
             this.Controls.Add(this.button2);
             this.Controls.Add(this.label10);
             this.Controls.Add(this.numericUpDown1);
-            this.Controls.Add(this.button1);
-            this.Controls.Add(this.btnGetPosVar);
             this.Controls.Add(this.btnHomePos);
-            this.Controls.Add(this.btnCurrentPos2SP);
             this.Controls.Add(this.label9);
             this.Controls.Add(this.label8);
-            this.Controls.Add(this.label7);
             this.Controls.Add(this.label6);
-            this.Controls.Add(this.label5);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.btnDown);
             this.Controls.Add(this.btnUp);
             this.Controls.Add(this.listBox1);
-            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "Form1";
             this.Text = "Motoman RS2TCP";
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).EndInit();
@@ -384,18 +335,12 @@
         private System.Windows.Forms.Button btnUp;
         private System.Windows.Forms.Button btnDown;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.Button btnCurrentPos2SP;
         private System.Windows.Forms.Button btnHomePos;
-        private System.Windows.Forms.Button btnGetPosVar;
-        private System.Windows.Forms.Button button1;
         private System.Windows.Forms.NumericUpDown numericUpDown1;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.Button button2;
@@ -406,6 +351,8 @@
         private System.Windows.Forms.NumericUpDown portNumber;
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.Button button7;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button button8;
     }
 }
 

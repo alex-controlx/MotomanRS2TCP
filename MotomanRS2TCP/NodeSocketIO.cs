@@ -94,24 +94,20 @@ namespace MotomanRS2TCP
                 }
 
                 Console.WriteLine(res.Text);
-                // Next, you might parse the data in this way.
-                //var obj = JsonConvert.DeserializeObject<T>(res.Text);
-                // Or, read some fields
                 var jobj = JObject.Parse(res.Text);
                 double speed = jobj.Value<double>("speed");
-                //double[] parsedPos = jobj.Value<double[]>("coordinates");
-                double[] parsedPos = jobj["coordinates"].Select(jv => (double)jv).ToArray();
-                double[] pos = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-                pos[0] = parsedPos[0];
-                pos[1] = parsedPos[1];
-                pos[2] = parsedPos[2];
-                pos[3] = parsedPos[3];
-                pos[4] = parsedPos[4];
-                pos[5] = parsedPos[5];
+                try
+                {
+                    IMove iMove = jobj["iMove"].ToObject<IMove>();
 
-                //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
-
-                //await xrc.MoveIncrementally(pos, speed);
+                    //double[] pos = iMove.ToArray();
+                    //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
+                    await xrc.MoveIncrementally(iMove, speed);
+                }
+                catch (Exception ex)
+                {
+                    EmitWrapperError("Parse ERROR: " + ex.Message);
+                }
             });
 
             client.OnConnected += async () =>
