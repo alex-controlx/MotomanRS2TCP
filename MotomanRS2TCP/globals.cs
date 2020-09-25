@@ -93,6 +93,18 @@ namespace MotomanRS2TCP
         }
     }
 
+    public class Limits {
+        public static int toolLength = 420;
+        public static int minZ = -1250 + Limits.toolLength; // Lowest to the pallet robot head + spear tool (400mm) [grip = 340mm]
+        public static int maxZ = 975;
+
+        // rotateZ < Limits.minRotate || rotateZ > Limits.maxRotate
+        public static double minRotate = -89.9;
+        public static double maxRotate = 89.9;
+
+        public static int maxLinearSpeed = 400;
+        public static int maxJointSpeed = 40;
+    }
 
     public class IMove
     {

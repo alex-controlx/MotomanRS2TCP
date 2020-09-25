@@ -56,8 +56,8 @@ namespace MotomanRS2TCP
             Console.WriteLine("Connecting to server");
             isConnecting = true;
 
-            // 192.168.1.106:4002
-            client = new SocketIO("http://192.168.1.63:4002");
+            // 192.168.1.106:4002 ; 192.168.1.63:4002
+            client = new SocketIO("http://192.168.1.106:4002");
 
             client.OnClosed += Client_OnClosed;
             client.OnConnected += Client_OnConnected;
@@ -84,25 +84,113 @@ namespace MotomanRS2TCP
                 // ...
             });
 
-            client.On("toRobot-moveToPosition", async res =>
+            client.On("toRobot-moveToPosition", async req =>
             {
-
-                if (xrc == null)
-                {
-                    EmitWrapperError("XRC is undefined");
-                    return;
-                }
-
-                Console.WriteLine(res.Text);
-                var jobj = JObject.Parse(res.Text);
-                double speed = jobj.Value<double>("speed");
+                Console.WriteLine(req.Text);
                 try
                 {
-                    IMove iMove = jobj["iMove"].ToObject<IMove>();
+                    var jobj = JObject.Parse(req.Text);
+                    string respId = jobj.Value<string>("responseChannel");
 
-                    //double[] pos = iMove.ToArray();
-                    //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
-                    await xrc.MoveIncrementally(iMove, speed);
+                    double speed = jobj["data"].Value<double>("speed");
+                    IMove iMove = jobj["data"]["iMove"].ToObject<IMove>();
+
+                    if (xrc == null)
+                    {
+                        await client.EmitAsync(respId, "XRC is undefined");
+                        return;
+                    }
+
+                    try
+                    {
+                        //double[] pos = iMove.ToArray();
+                        //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
+                        await xrc.MoveIncrementally(iMove, speed);
+                        await client.EmitAsync(respId);
+                    }
+                    catch (Exception ex)
+                    {
+                        await client.EmitAsync(respId, ex.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    EmitWrapperError("Parse ERROR: " + ex.Message);
+                }
+
+
+                //var jobj = JObject.Parse(res.Text);
+                //double speed = jobj.Value<double>("speed");
+                //try
+                //{
+                    
+
+                //    //double[] pos = iMove.ToArray();
+                //    //Console.WriteLine("Moving with speed " + speed + " to " + pos[0] + ", " + pos[1] + ", " + pos[2] + ", " + pos[3] + ", " + pos[4] + ", " + pos[5]);
+                //    await xrc.MoveIncrementally(iMove, speed);
+                //}
+                //catch (Exception ex)
+                //{
+                //    EmitWrapperError("Parse ERROR: " + ex.Message);
+                //}
+            });
+
+            client.On("toRobot-cancelAll", async req =>
+            {
+                Console.WriteLine(req.Text);
+                try
+                {
+                    var jobj = JObject.Parse(req.Text);
+                    string respId = jobj.Value<string>("responseChannel");
+
+                    if (xrc == null)
+                    {
+                        await client.EmitAsync(respId, "XRC is undefined");
+                        return;
+                    }
+
+                    try
+                    {
+                        await xrc.CancelOperation();
+
+                        await client.EmitAsync(respId);
+                    }
+                    catch (Exception ex)
+                    {
+                        await client.EmitAsync(respId, ex.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    EmitWrapperError("Parse ERROR: " + ex.Message);
+                }
+            });
+
+            client.On("toRobot-startJob", async req =>
+            {
+                Console.WriteLine(req.Text);
+                try
+                {
+                    var jobj = JObject.Parse(req.Text);
+                    string respId = jobj.Value<string>("responseChannel");
+                    string jobName = jobj.Value<string>("data");
+
+                    if (xrc == null)
+                    {
+                        await client.EmitAsync(respId, "XRC is undefined");
+                        return;
+                    }
+
+                    try
+                    {
+                        await xrc.StartJob(jobName);
+
+                        await client.EmitAsync(respId);
+                    }
+                    catch (Exception ex)
+                    {
+                        await client.EmitAsync(respId, ex.Message);
+                    }
                 }
                 catch (Exception ex)
                 {

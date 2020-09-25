@@ -44,6 +44,7 @@ namespace MotomanRS2TCP
         
         //private readonly double[] homePosXYZ = { 1345.025, -0.028, 975.198, 90.01, 0.00, 90.01, 0, 0, 0, 0, 0, 0};
         private readonly double[] homePosXYZ = { 1170.025, 0, 805, 180, -0.01, 0, 0, 0, 0, 0, 0, 0};
+        private readonly int commsDelay_mm = 15;
 
         // new loading home 1170.025,0,805,180,-0.01,0 (on 27/05/2020)
         // in pulse 41 -2073 -3093 13 -71346 36784
@@ -139,14 +140,16 @@ namespace MotomanRS2TCP
         }
 
 
-        private async Task ReadGeneralStatus()
+        private async Task<bool> ReadGeneralStatus()
         {
             await TaskEx.WaitUntil(isIdle);
             SetEvent("ReadGeneralStatus");
 
+            bool isError = false;
             short sw1 = -1, sw2 = -1;
             short ret = CMotocom.BscGetStatus(m_Handle, ref sw1, ref sw2);
             if (ret != 0) {
+                isError = true;
                 SetError("Error calling BscGetStatus");
             } else
             {
@@ -162,6 +165,7 @@ namespace MotomanRS2TCP
 
                 if (ret1 == -1)
                 {
+                    isError = true;
                     SetError("Error executing BscGetCartPos");
                 } else
                 {
@@ -174,6 +178,7 @@ namespace MotomanRS2TCP
                 }
             }
             await SetEvent(EnumEvent.Idle);
+            return isError;
         }
 
         private async void StatusTimer_Tick(object sender, EventArgs e)
@@ -181,13 +186,15 @@ namespace MotomanRS2TCP
             if (m_CurrentConnection != EnumComms.Connected || m_CurrentEvent != EnumEvent.Idle) return;
             // the timer below behaves as a timeout
             StatusTimeout.Stop();
-            await ReadGeneralStatus();
+            bool isError = await ReadGeneralStatus();
+            if (isError) await Task.Delay(500);
             StatusTimeout.Start();
         }
 
         private void CheckComms(object sender, EventArgs e)
         {
-            
+            if (robotStatus.isOperating) return;
+
             long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             if (now > m_previousStatus_ms + m_commsLossTimeout && !m_commsError)
             {
@@ -328,36 +335,41 @@ namespace MotomanRS2TCP
             await SetEvent(EnumEvent.Idle);
         }
 
+        public async Task StartJob(string JobName)
+        {
+            if (m_commsError) return;
 
-        //public async Task StartJob(string JobName)
-        //{
-        //    if (m_commsError) return;
-            
-        //    if (!JobName.ToLower().Contains(".jbi"))
-        //    {
-        //        SetError("Error *.jbi jobname extension is missing !");
-        //        return;
-        //    }
-            
-        //    await TaskEx.WaitUntil(isIdle);
-        //    SetEvent("StartJob");
-        //    short ret;
+            if (!JobName.ToLower().Contains(".jbi"))
+            {
+                SetError("Error *.jbi jobname extension is missing !");
+                return;
+            }
 
-        //    ret = CMotocom.BscSelectJob(m_Handle, JobName);
-        //    if (ret == 0)
-        //    {
-        //        ret = CMotocom.BscServoOn(m_Handle);
-        //        if (ret != 0) SetError("Error executing BscServoON err:" + ret.ToString());
-        //        else
-        //        {
-        //            ret = CMotocom.BscStartJob(m_Handle);
-        //            if (ret != 0) SetError("Error starting job !");
-        //        }
-        //    }
-        //    else SetError("Error selecting job !");
+            await TaskEx.WaitUntil(isIdle);
+            SetEvent("StartJob");
+            short ret;
 
-        //    SetEvent(EnumEvent.Idle);
-        //}
+            ret = CMotocom.BscSelectJob(m_Handle, JobName);
+            if (ret == 0)
+            {
+                if (await IsReadyToOperate())
+                {
+                    ret = CMotocom.BscStartJob(m_Handle);
+                    if (ret != 0) SetError("Error starting job !");
+                }
+
+                //ret = CMotocom.BscServoOn(m_Handle);
+                //if (ret != 0) SetError("Error executing BscServoON err:" + ret.ToString());
+                //else
+                //{
+                //    ret = CMotocom.BscStartJob(m_Handle);
+                //    if (ret != 0) SetError("Error starting job !");
+                //}
+            }
+            else SetError("Error selecting job !");
+
+            SetEvent(EnumEvent.Idle);
+        }
 
 
         public async Task MoveToHome1(double speedSP = 20)
@@ -367,20 +379,25 @@ namespace MotomanRS2TCP
             await TaskEx.WaitUntil(isIdle);
             SetEvent("MoveToHome1");
 
-            await Task.Delay(50);
-
             short ret = 0;
-            double speed = (speedSP > 30) ? 30 : ((speedSP < 0) ? 0 : speedSP);
+            double speed = (speedSP > Limits.maxJointSpeed) ? Limits.maxJointSpeed : ((speedSP < 0) ? 0 : speedSP);
             short toolNo = 0;
 
-            if (IsReadyToOperate())
-            {
+            if (await IsReadyToOperate()) {
+
+                if (currentPosition[2] < homePosXYZ[2] - 500) {
+                    IMove iMove = new IMove(0, 0, -300, 0);
+                    await incMove(iMove, Limits.maxLinearSpeed);
+                }
+
                 movingTo[0] = homePosXYZ[0];
                 movingTo[1] = homePosXYZ[1];
                 movingTo[2] = homePosXYZ[2];
                 movingTo[3] = homePosXYZ[3];
                 movingTo[4] = homePosXYZ[4];
                 movingTo[5] = homePosXYZ[5];
+
+                await Task.Delay(commsDelay_mm);
                 MovingToPosition?.Invoke(this, null);
                 ret = CMotocom.BscPMovj(m_Handle, speed, toolNo, ref homePosPulse[0]);
                 if (ret != 0) SetError("Error MoveToHome1:BscPMovj");
@@ -396,26 +413,48 @@ namespace MotomanRS2TCP
             await TaskEx.WaitUntil(isIdle);
             SetEvent("MoveToPosition");
 
-            await Task.Delay(50);
+            await incMove(iMove, speedSP);
 
-            if (isSafeToMove(iMove))
-            {
+            //if (isSafeToMove(iMove))
+            //{
+            //    short ret = 0;
+            //    StringBuilder vType = new StringBuilder("V"); // VR;
+            //    double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
+            //    StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
+            //    short toolNo = 0;
+            //    double[] iCoordinates = iMove.ToArray();
+
+            //    if (await IsReadyToOperate())
+            //    {
+            //        await Task.Delay(10);
+            //        MovingToPosition?.Invoke(this, null);
+            //        ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref iCoordinates[0]);
+            //        if (ret != 0) SetError("Error MoveToPosition:BscImov");
+            //    }
+            //} else SetError("Not safe to move to X=" + movingTo[0] + ", Y=" + movingTo[1] + ", Z=" + movingTo[2] + ", Rz=" + movingTo[5]);
+
+            await SetEvent(EnumEvent.Idle);
+        }
+
+        private async Task incMove(IMove iMove, double speedSP) {
+            if (isSafeToMove(iMove)) {
                 short ret = 0;
                 StringBuilder vType = new StringBuilder("V"); // VR;
-                double speed = (speedSP > 300) ? 300 : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
+                double speed = (speedSP > Limits.maxLinearSpeed) ? Limits.maxLinearSpeed : ((speedSP < 0) ? 0 : (double)speedSP); // is VJ=20.00
                 StringBuilder framename = new StringBuilder("TOOL"); // ROBOT BASE
                 short toolNo = 0;
                 double[] iCoordinates = iMove.ToArray();
 
-                if (IsReadyToOperate())
-                {
+                if (await IsReadyToOperate()) {
+
+                    await Task.Delay(commsDelay_mm);
                     MovingToPosition?.Invoke(this, null);
                     ret = CMotocom.BscImov(m_Handle, vType, speed, framename, toolNo, ref iCoordinates[0]);
-                    if (ret != 0) SetError("Error MoveToPosition:BscImov");
+                    if (ret != 0)
+                        SetError("Error MoveToPosition:BscImov");
                 }
-            } else SetError("Not safe to move to X=" + movingTo[0] + ", Y=" + movingTo[1] + ", Z=" + movingTo[2] + ", Rz=" + movingTo[5]);
-
-            await SetEvent(EnumEvent.Idle);
+            } else
+                SetError("Not safe to move to X=" + movingTo[0] + ", Y=" + movingTo[1] + ", Z=" + movingTo[2] + ", Rz=" + movingTo[5]);
         }
 
         private bool isSafeToMove(IMove iMove)
@@ -437,8 +476,8 @@ namespace MotomanRS2TCP
 
             //Console.WriteLine(moveToX + ", " + moveToY + ", " + moveToZ + ", " + rotateZ);
 
-            if (moveToZ < -1100 || moveToZ > 975) return false;
-            if (rotateZ < -89.9 || rotateZ > 89.9) return false;
+            if (moveToZ < Limits.minZ || moveToZ > Limits.maxZ) return false;
+            if (rotateZ < Limits.minRotate || rotateZ > Limits.maxRotate) return false;
 
             double loc = moveToX * moveToX + moveToY * moveToY;
             bool outSmall = loc >= Rin * Rin;
@@ -476,7 +515,7 @@ namespace MotomanRS2TCP
         }
 
 
-        private bool IsReadyToOperate()
+        private async Task<bool> IsReadyToOperate()
         {
             short ret = 0;
             if (robotStatus.isServoOn)
@@ -484,14 +523,14 @@ namespace MotomanRS2TCP
                 if (robotStatus.isOperating)
                 {
                     // stop any current jobs
+                    await Task.Delay(commsDelay_mm);
                     ret = CMotocom.BscHoldOn(m_Handle);
                     if (ret != 0)
                     {
                         SetError("Error IsReadyToOperate:BscHoldOn");
                         return false;
-                    }
-                    else
-                    {
+                    } else {
+                        await Task.Delay(commsDelay_mm);
                         ret = CMotocom.BscHoldOff(m_Handle);
                         if (ret != 0)
                         {
